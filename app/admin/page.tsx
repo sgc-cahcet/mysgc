@@ -78,7 +78,7 @@ export default function AdminPage() {
       }
 
       // Check if user is admin
-      if (memberData.role !== "Vice President" && memberData.role !== "President" && memberData.role !== "Admininistrator") {
+      if (memberData.role !== "Vice President" && memberData.role !== "President" && memberData.role !== "Administrator" && memberData.role !== "Session Incharge") {
         setStatusMessage({ type: "error", text: "You do not have admin privileges" })
         router.push("/dashboard")
         return
