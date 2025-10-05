@@ -33,7 +33,7 @@ export function DashboardHeader({ memberData }: DashboardHeaderProps) {
   const supabase = createClientComponentClient()
   
   // Check if user has admin access
-  const isAdmin = memberData?.role === "Admin" || memberData?.role === "Admininistrator" || memberData?.role === "Vice President" || memberData?.role === "President"
+  const isAdmin = memberData?.role === "Administrator" || memberData?.role === "Session Incharge" || memberData?.role === "Vice President" || memberData?.role === "President"
 
   const handleSignOut = async () => {
     setIsSigningOut(true)
