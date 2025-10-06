@@ -1,4 +1,5 @@
 import Link from "next/link"
+import Image from "next/image"
 import { Button } from "@/components/ui/button"
 
 export default function Home() {
@@ -6,8 +7,14 @@ export default function Home() {
     <div className="min-h-screen bg-[#f0f0f0] flex flex-col items-center justify-center p-4">
       <div className="w-full max-w-md bg-white border-2 border-black rounded-lg shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] p-6">
         <div className="flex justify-center mb-6">
-          <div className="w-24 h-24 bg-black rounded-full flex items-center justify-center">
-            <span className="text-white text-2xl font-bold">SGC</span>
+          <div className="w-24 h-24 relative">
+            <Image
+              src="/logo.png"
+              alt="SGC Logo"
+              fill
+              className="object-contain"
+              priority
+            />
           </div>
         </div>
 
@@ -22,8 +29,7 @@ export default function Home() {
             </Button>
           </Link>
         </div>
-
-        <div className="mt-8 text-center text-gray-500 text-xs">
+        <div className="mt-12 text-center text-gray-500 text-xs hidden md:block">
           <p>This Site was Developed and Maintained by SGC</p>
           <p>&copy; {new Date().getFullYear()} Students Guidance Cell - CAHCET. All Rights Reserved</p>
         </div>
@@ -31,4 +37,3 @@ export default function Home() {
     </div>
   )
 }
-

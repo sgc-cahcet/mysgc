@@ -189,8 +189,7 @@ export default function DashboardPage() {
           )}
           <SessionInterestForm memberId={memberData?.id} />
         </div>
-
-        <div className="mt-12 text-center text-gray-500 text-xs">
+        <div className="mt-12 text-center text-gray-500 text-xs hidden md:block">
           <p>This Site was Developed and Maintained by SGC</p>
           <p>&copy; {new Date().getFullYear()} Students Guidance Cell - CAHCET. All Rights Reserved</p>
         </div>
