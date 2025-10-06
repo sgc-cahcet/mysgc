@@ -8,9 +8,16 @@ import { DashboardHeader } from "@/components/dashboard-header"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { useToast } from "@/hooks/use-toast"
-import { Star, ArrowLeft, Calendar } from "lucide-react"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Star, ArrowLeft, Calendar, MessageSquare, Users } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
 
 interface MemberData {
   id: string
@@ -28,26 +35,27 @@ interface Session {
   type: string
   handler: string
   handler_id: number
-  description: string
+  description: string | null
+  is_approved: boolean
+  created_at: string
+  feedback?: Feedback[]
   average_rating?: number
-  feedback?: {
-    id: string
-    rating: number
-    comments: string
-    created_at: string
-  }[]
-  user_feedback?: {
-    id: string
-    rating: number
-    comments: string
-  } | null
+}
+
+interface Feedback {
+  id: string
+  session_id: string
+  member_id: number
+  date: string
+  rating: number
+  comments: string | null
+  created_at: string
 }
 
 export default function SessionHistoryPage() {
   const [memberData, setMemberData] = useState<MemberData | null>(null)
   const [loading, setLoading] = useState(true)
-  const [pastSessions, setPastSessions] = useState<Session[]>([])
-  const [upcomingSessions, setUpcomingSessions] = useState<Session[]>([])
+  const [sessions, setSessions] = useState<Session[]>([])
   const router = useRouter()
   const { toast } = useToast()
   const supabase = createClientComponentClient()
@@ -88,7 +96,7 @@ export default function SessionHistoryPage() {
       }
 
       setMemberData(memberData)
-      fetchSessionHistory(memberData.id)
+      fetchSessions(memberData.id)
     } catch (error) {
       toast({
         title: "Error",
@@ -98,66 +106,37 @@ export default function SessionHistoryPage() {
     }
   }
 
-  const fetchSessionHistory = async (memberId: string) => {
+  const fetchSessions = async (memberId: number) => {
     try {
-      const today = new Date().toISOString().split("T")[0]
-
-      // First, get all sessions the user has provided feedback for
-      const { data: userFeedback, error: userFeedbackError } = await supabase
-        .from("session_feedback")
-        .select("session_id, rating, comments")
-        .eq("member_id", memberId)
-
-      if (userFeedbackError) {
-        console.error("Error fetching user feedback:", userFeedbackError)
-      }
-
-      // Create a map of session IDs the user has provided feedback for
-      const userFeedbackMap = new Map()
-      if (userFeedback) {
-        userFeedback.forEach((feedback) => {
-          userFeedbackMap.set(feedback.session_id, {
-            rating: feedback.rating,
-            comments: feedback.comments,
-          })
-        })
-      }
-
-      // Fetch all sessions
-      const { data: sessions, error: sessionsError } = await supabase
+      // Fetch all sessions where this member is the handler
+      const { data: sessionsData, error: sessionsError } = await supabase
         .from("sessions")
         .select("*")
-        .eq("is_approved", true)
+        .eq("handler_id", memberId)
         .order("date", { ascending: false })
 
       if (sessionsError) {
         throw sessionsError
       }
 
-      if (!sessions) {
-        setPastSessions([])
-        setUpcomingSessions([])
+      if (!sessionsData) {
+        setSessions([])
         setLoading(false)
         return
       }
 
-      // Split sessions into past and upcoming
-      const past: Session[] = []
-      const upcoming: Session[] = []
+      // Fetch feedback for each session
+      const sessionsWithFeedback: Session[] = []
 
-      for (const session of sessions) {
-        // Determine if session is past or upcoming
-        const isPast = session.date < today
-
-        // For each session, fetch feedback
+      for (const session of sessionsData) {
         const { data: feedbackData, error: feedbackError } = await supabase
           .from("session_feedback")
-          .select("id, rating, comments, created_at")
+          .select("*")
           .eq("session_id", session.id)
+          .order("created_at", { ascending: false })
 
         if (feedbackError) {
           console.error("Error fetching feedback:", feedbackError)
-          continue
         }
 
         // Calculate average rating
@@ -167,53 +146,17 @@ export default function SessionHistoryPage() {
           averageRating = sum / feedbackData.length
         }
 
-        // Get user's own feedback for this session
-        const userFeedback = userFeedbackMap.get(session.id) || null
-
-        // Format feedback without member names
-        const formattedFeedback =
-          feedbackData?.map((item) => ({
-            id: item.id,
-            rating: item.rating,
-            comments: item.comments,
-            created_at: item.created_at,
-          })) || []
-
-        const sessionWithFeedback = {
+        sessionsWithFeedback.push({
           ...session,
-          average_rating: Number(averageRating.toFixed(1)),
-          feedback: formattedFeedback,
-          user_feedback: userFeedback
-            ? {
-                id: session.id, // Using session id as a placeholder
-                rating: userFeedback.rating,
-                comments: userFeedback.comments,
-              }
-            : null,
-        }
-
-        // Only include sessions that are either:
-        // 1. Handled by the current user (they presented it)
-        // 2. The user has provided feedback for (they attended it)
-        const isUserSession =
-          session.handler_id === memberId ||
-          userFeedbackMap.has(session.id) ||
-          session.handler.includes(memberData?.name || "")
-
-        if (isUserSession) {
-          if (isPast) {
-            past.push(sessionWithFeedback)
-          } else {
-            upcoming.push(sessionWithFeedback)
-          }
-        }
+          feedback: feedbackData || [],
+          average_rating: feedbackData && feedbackData.length > 0 ? Number(averageRating.toFixed(1)) : undefined,
+        })
       }
 
-      setPastSessions(past)
-      setUpcomingSessions(upcoming)
+      setSessions(sessionsWithFeedback)
       setLoading(false)
     } catch (error) {
-      console.error("Error fetching session history:", error)
+      console.error("Error fetching sessions:", error)
       toast({
         title: "Error",
         description: "Failed to fetch session history",
@@ -254,7 +197,10 @@ export default function SessionHistoryPage() {
 
       <main className="container mx-auto p-4 md:p-6 max-w-6xl">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6">
-          <h1 className="text-3xl font-black">Session History</h1>
+          <div>
+            <h1 className="text-3xl font-black">My Sessions</h1>
+            <p className="text-gray-600 mt-1">Sessions you've handled</p>
+          </div>
           <Link href="/dashboard" passHref>
             <Button className="mt-2 sm:mt-0 flex items-center gap-2 bg-black hover:bg-gray-800 text-white border-2 border-black rounded-lg shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-0.5 transition-transform">
               <ArrowLeft size={16} />
@@ -263,132 +209,121 @@ export default function SessionHistoryPage() {
           </Link>
         </div>
 
-        <Tabs defaultValue="past" className="w-full">
-          <TabsList className="grid w-full grid-cols-2 mb-4">
-            <TabsTrigger value="past">Past Sessions</TabsTrigger>
-            <TabsTrigger value="upcoming">Upcoming Sessions</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="past">
-            <div className="space-y-4">
-              {pastSessions.length > 0 ? (
-                pastSessions.map((session) => (
-                  <Card key={session.id} className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-                    <CardHeader className="pb-2">
-                      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
-                        <CardTitle className="text-xl">{session.title}</CardTitle>
-                        {session.average_rating !== undefined && session.average_rating > 0 && (
-                          <div className="flex items-center">
-                            <span className="text-sm font-medium mr-2">Average Rating:</span>
-                            {renderStars(session.average_rating)}
-                          </div>
-                        )}
+        <div className="space-y-4">
+          {sessions.length > 0 ? (
+            sessions.map((session) => (
+              <Card key={session.id} className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+                <CardHeader className="pb-2">
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                    <CardTitle className="text-xl">{session.title}</CardTitle>
+                    {session.average_rating !== undefined && session.average_rating > 0 && (
+                      <div className="flex items-center">
+                        <span className="text-sm font-medium mr-2">Average Rating:</span>
+                        {renderStars(session.average_rating)}
                       </div>
-                      <div className="flex flex-wrap gap-2 mt-2">
-                        <Badge variant="outline" className="flex items-center gap-1 border-2 border-black">
-                          <Calendar size={14} />
-                          {new Date(session.date).toLocaleDateString("en-US", {
-                            year: "numeric",
-                            month: "short",
-                            day: "numeric",
-                          })}
-                        </Badge>
-                        <Badge variant="outline" className="border-2 border-black">
-                          {session.type}
-                        </Badge>
-                        <Badge variant="outline" className="border-2 border-black">
-                          {session.handler}
-                        </Badge>
-                      </div>
-                    </CardHeader>
-                    <CardContent>
-                      {session.description && (
-                        <div className="mb-4">
-                          <h4 className="font-medium mb-1">Description:</h4>
-                          <p className="text-sm text-gray-600">{session.description}</p>
-                        </div>
-                      )}
+                    )}
+                  </div>
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    <Badge variant="outline" className="flex items-center gap-1 border-2 border-black">
+                      <Calendar size={14} />
+                      {new Date(session.date).toLocaleDateString("en-US", {
+                        year: "numeric",
+                        month: "short",
+                        day: "numeric",
+                      })}
+                    </Badge>
+                    <Badge variant="outline" className="border-2 border-black">
+                      {session.time}
+                    </Badge>
+                    <Badge variant="outline" className="border-2 border-black">
+                      {session.type}
+                    </Badge>
+                    {session.feedback && session.feedback.length > 0 && (
+                      <Badge variant="outline" className="flex items-center gap-1 border-2 border-green-600 text-green-700 bg-green-50">
+                        <Users size={14} />
+                        {session.feedback.length} Feedback{session.feedback.length > 1 ? 's' : ''}
+                      </Badge>
+                    )}
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  {session.description && (
+                    <div className="mb-4">
+                      <h4 className="font-medium mb-1">Description:</h4>
+                      <p className="text-sm text-gray-600">{session.description}</p>
+                    </div>
+                  )}
 
-                      {session.user_feedback && (
-                        <div className="mb-4 p-3 bg-gray-50 rounded-lg border-2 border-black">
-                          <h4 className="font-medium mb-1">Your Feedback:</h4>
-                          <div className="mb-1">{renderStars(session.user_feedback.rating)}</div>
-                          {session.user_feedback.comments && (
-                            <p className="text-sm text-gray-600">{session.user_feedback.comments}</p>
-                          )}
-                        </div>
-                      )}
+                  <div className="flex justify-end">
+                    <Dialog>
+                      <DialogTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className="flex items-center gap-2 border-2 border-black hover:bg-gray-100 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
+                        >
+                          <MessageSquare size={16} />
+                          View Feedback ({session.feedback?.length || 0})
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto border-2 border-black">
+                        <DialogHeader>
+                          <DialogTitle className="text-2xl font-bold">{session.title}</DialogTitle>
+                          <DialogDescription>
+                            Feedback received for this session
+                          </DialogDescription>
+                        </DialogHeader>
 
-                      {session.feedback && session.feedback.length > 0 && (
-                        <div>
-                          <h4 className="font-medium mb-2">All Feedback:</h4>
-                          <div className="space-y-2 max-h-60 overflow-y-auto pr-2">
-                            {session.feedback
-                              .filter((item) => item.comments && item.comments.trim() !== "")
-                              .map((item) => (
-                                <div key={item.id} className="p-2 bg-gray-50 rounded-lg text-sm border border-gray-200">
-                                  <div className="mb-1">{renderStars(item.rating)}</div>
-                                  <p className="text-gray-600">{item.comments}</p>
+                        <div className="mt-4">
+                          {session.feedback && session.feedback.length > 0 ? (
+                            <div className="space-y-4">
+                              {session.feedback.map((feedback) => (
+                                <div
+                                  key={feedback.id}
+                                  className="p-4 bg-gray-50 rounded-lg border-2 border-gray-300"
+                                >
+                                  <div className="flex justify-between items-start mb-2">
+                                    <div>{renderStars(feedback.rating)}</div>
+                                    <span className="text-xs text-gray-500">
+                                      {new Date(feedback.date).toLocaleDateString("en-US", {
+                                        year: "numeric",
+                                        month: "short",
+                                        day: "numeric",
+                                      })}
+                                    </span>
+                                  </div>
+                                  {feedback.comments && feedback.comments.trim() !== "" && (
+                                    <div className="mt-2">
+                                      <h5 className="font-medium text-sm mb-1">Comments:</h5>
+                                      <p className="text-sm text-gray-700">{feedback.comments}</p>
+                                    </div>
+                                  )}
                                 </div>
                               ))}
-                          </div>
+                            </div>
+                          ) : (
+                            <div className="text-center py-8 bg-gray-50 rounded-lg border-2 border-gray-200">
+                              <MessageSquare size={48} className="mx-auto mb-2 text-gray-400" />
+                              <p className="text-gray-600">No feedback received yet</p>
+                              <p className="text-sm text-gray-500 mt-1">
+                                Feedback will appear here once participants submit their reviews
+                              </p>
+                            </div>
+                          )}
                         </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                ))
-              ) : (
-                <div className="text-center py-8 bg-white rounded-lg border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-                  <p className="text-gray-600">No past sessions found.</p>
-                </div>
-              )}
+                      </DialogContent>
+                    </Dialog>
+                  </div>
+                </CardContent>
+              </Card>
+            ))
+          ) : (
+            <div className="text-center py-12 bg-white rounded-lg border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+              <Calendar size={64} className="mx-auto mb-4 text-gray-400" />
+              <p className="text-xl font-bold text-gray-800 mb-2">No Sessions Found</p>
+              <p className="text-gray-600">You haven't handled any sessions yet.</p>
             </div>
-          </TabsContent>
-
-          <TabsContent value="upcoming">
-            <div className="space-y-4">
-              {upcomingSessions.length > 0 ? (
-                upcomingSessions.map((session) => (
-                  <Card key={session.id} className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-                    <CardHeader className="pb-2">
-                      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
-                        <CardTitle className="text-xl">{session.title}</CardTitle>
-                      </div>
-                      <div className="flex flex-wrap gap-2 mt-2">
-                        <Badge variant="outline" className="flex items-center gap-1 border-2 border-black">
-                          <Calendar size={14} />
-                          {new Date(session.date).toLocaleDateString("en-US", {
-                            year: "numeric",
-                            month: "short",
-                            day: "numeric",
-                          })}
-                        </Badge>
-                        <Badge variant="outline" className="border-2 border-black">
-                          {session.type}
-                        </Badge>
-                        <Badge variant="outline" className="border-2 border-black">
-                          {session.handler}
-                        </Badge>
-                      </div>
-                    </CardHeader>
-                    <CardContent>
-                      {session.description && (
-                        <div>
-                          <h4 className="font-medium mb-1">Description:</h4>
-                          <p className="text-sm text-gray-600">{session.description}</p>
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                ))
-              ) : (
-                <div className="text-center py-8 bg-white rounded-lg border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-                  <p className="text-gray-600">No upcoming sessions found.</p>
-                </div>
-              )}
-            </div>
-          </TabsContent>
-        </Tabs>
+          )}
+        </div>
 
         <div className="mt-12 text-center text-gray-500 text-xs">
           <p>This Site was Developed and Maintained by SGC</p>

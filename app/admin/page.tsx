@@ -316,6 +316,7 @@ export default function AdminPage() {
         time: "01:00 PM",
         type: interest.type,
         handler: interest.member_name,
+        handler_id: interest.member_id,
         description: interest.description,
         is_approved: true,
       })
@@ -500,6 +501,7 @@ export default function AdminPage() {
         time: "01:00 PM",
         type: manualType,
         handler: selectedMember.name,
+        handler_id: parseInt(manualMemberId),
         description: manualDescription,
         is_approved: true,
       })
