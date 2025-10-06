@@ -54,15 +54,17 @@ export function SessionInterestForm({ memberId }: SessionInterestFormProps) {
     }
   }
 
-  const isAfter1PMIST = () => {
+  const isAfter1230PMIST = () => {
     const now = new Date()
-    const istHours = now.getUTCHours() + 5
-    const istMinutes = now.getUTCMinutes() + 30
-
-    const adjustedHours = istHours + Math.floor(istMinutes / 60)
-    const adjustedMinutes = istMinutes % 60
-
-    return adjustedHours > 12 || (adjustedHours === 12 && adjustedMinutes >= 30)
+    // Convert UTC to IST (UTC + 5:30)
+    const istOffset = 5.5 * 60 * 60 * 1000 // 5.5 hours in milliseconds
+    const istTime = new Date(now.getTime() + istOffset)
+    
+    const istHours = istTime.getUTCHours()
+    const istMinutes = istTime.getUTCMinutes()
+    
+    // Check if time is after 12:30 PM (12:30 = 12 hours and 30 minutes)
+    return istHours > 12 || (istHours === 12 && istMinutes >= 30)
   }
 
   const isDateAvailable = (date: Date) => {
@@ -77,7 +79,7 @@ export function SessionInterestForm({ memberId }: SessionInterestFormProps) {
     if (date.getDay() === 0) return false
 
     // Check if it's today and after 12:30 PM IST
-    if (dateString === formatDate(today) && isAfter1PMIST()) return false
+    if (dateString === formatDate(today) && isAfter1230PMIST()) return false
 
     // Check if date is booked
     return !bookedDates.has(dateString)
