@@ -29,6 +29,7 @@ export default function AuthPage() {
   
   const [loading, setLoading] = useState(false)
   const [checkingSession, setCheckingSession] = useState(true)
+  const [isRedirecting, setIsRedirecting] = useState(false)
   const router = useRouter()
   const supabase = createClientComponentClient()
 
@@ -71,6 +72,7 @@ export default function AuthPage() {
           type: "success" 
         })
         
+        setIsRedirecting(true)
         // Short delay before redirect
         setTimeout(() => {
           router.push("/dashboard")
@@ -173,6 +175,7 @@ export default function AuthPage() {
             type: "success" 
           })
           
+          setIsRedirecting(true)
           // Short delay before redirect
           setTimeout(() => {
             router.push("/dashboard")
@@ -195,12 +198,16 @@ export default function AuthPage() {
         const { data: { session } } = await supabase.auth.getSession()
         
         if (session) {
-          // User is already logged in, redirect to dashboard
+          // User is already logged in, set redirecting state and redirect
+          setIsRedirecting(true)
           router.push("/dashboard")
+          // Keep checkingSession true to prevent form from rendering
+          return
         }
       } catch (error) {
         console.error("Error checking session:", error)
       } finally {
+        // Only set checkingSession to false if we're not redirecting
         setCheckingSession(false)
       }
     }
@@ -208,8 +215,8 @@ export default function AuthPage() {
     checkSession()
   }, [router, supabase.auth])
 
-  // Show loader while checking session
-  if (checkingSession) {
+  // Show loader while checking session OR while redirecting
+  if (checkingSession || isRedirecting) {
     return (
       <div className="min-h-screen bg-[#f0f0f0] flex flex-col items-center justify-center p-4">
         <div className="w-full max-w-md bg-white border-2 border-black rounded-lg shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] p-12">
@@ -224,7 +231,9 @@ export default function AuthPage() {
               />
             </div>
             <Loader2 className="h-8 w-8 animate-spin text-black" />
-            <p className="text-lg font-bold text-center">Checking authentication...</p>
+            <p className="text-lg font-bold text-center">
+              {isRedirecting ? "Redirecting to dashboard..." : "Checking authentication..."}
+            </p>
           </div>
         </div>
       </div>
