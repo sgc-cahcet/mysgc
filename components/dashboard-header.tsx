@@ -39,19 +39,49 @@ export function DashboardHeader({ memberData }: DashboardHeaderProps) {
     setIsSigningOut(true)
 
     try {
-      await supabase.auth.signOut()
+      // Sign out from Supabase
+      const { error } = await supabase.auth.signOut()
+      
+      if (error) {
+        throw error
+      }
+
+      // Clear any cached data
+      if (typeof window !== 'undefined') {
+        // Clear service worker caches if they exist (PWA specific)
+        if ('caches' in window) {
+          const cacheNames = await caches.keys()
+          await Promise.all(
+            cacheNames.map(cacheName => caches.delete(cacheName))
+          )
+        }
+      }
+
       toast({
         title: "Signed out",
         description: "You have been signed out successfully",
       })
-      router.push("/login")
+
+      // Add a small delay to ensure auth state is cleared
+      await new Promise(resolve => setTimeout(resolve, 500))
+      
+      // Use router.replace instead of router.push to prevent back navigation
+      router.replace("/login")
+      
+      // Force a hard refresh after redirect to clear any remaining state
+      setTimeout(() => {
+        if (typeof window !== 'undefined') {
+          window.location.href = "/login"
+        }
+      }, 100)
+      
     } catch (error) {
+      console.error("Sign out error:", error)
       toast({
         title: "Error",
-        description: "Failed to sign out",
+        description: "Failed to sign out. Please try again.",
         variant: "destructive",
       })
-    } finally {
       setIsSigningOut(false)
     }
   }
