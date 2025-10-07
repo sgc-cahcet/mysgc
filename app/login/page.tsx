@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Loader2 } from "lucide-react"
 
 export default function AuthPage() {
   // Login state
@@ -27,6 +28,7 @@ export default function AuthPage() {
   const [signupMessage, setSignupMessage] = useState({ text: "", type: "" })
   
   const [loading, setLoading] = useState(false)
+  const [checkingSession, setCheckingSession] = useState(true)
   const router = useRouter()
   const supabase = createClientComponentClient()
 
@@ -189,16 +191,45 @@ export default function AuthPage() {
 
   useEffect(() => {
     const checkSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession()
-      
-      if (session) {
-        // User is already logged in, redirect to dashboard
-        router.push("/dashboard")
+      try {
+        const { data: { session } } = await supabase.auth.getSession()
+        
+        if (session) {
+          // User is already logged in, redirect to dashboard
+          router.push("/dashboard")
+        }
+      } catch (error) {
+        console.error("Error checking session:", error)
+      } finally {
+        setCheckingSession(false)
       }
     }
     
     checkSession()
   }, [router, supabase.auth])
+
+  // Show loader while checking session
+  if (checkingSession) {
+    return (
+      <div className="min-h-screen bg-[#f0f0f0] flex flex-col items-center justify-center p-4">
+        <div className="w-full max-w-md bg-white border-2 border-black rounded-lg shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] p-12">
+          <div className="flex flex-col items-center justify-center space-y-4">
+            <div className="w-24 h-24 relative mb-4">
+              <Image
+                src="/logo.png"
+                alt="SGC Logo"
+                fill
+                className="object-contain"
+                priority
+              />
+            </div>
+            <Loader2 className="h-8 w-8 animate-spin text-black" />
+            <p className="text-lg font-bold text-center">Checking authentication...</p>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-[#f0f0f0] flex flex-col items-center justify-center p-4">
