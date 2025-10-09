@@ -494,9 +494,10 @@ export function FeedbackForm({ memberId, todaySessions }: FeedbackFormProps) {
 
             <div>
               <label htmlFor="comment" className="block text-sm font-medium mb-2">
-                Comments (Optional)
+                Comments
               </label>
               <Textarea
+                required
                 id="comment"
                 placeholder="Share your thoughts about the session... What did you like? What could be improved?"
                 value={comment}
