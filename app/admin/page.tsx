@@ -545,15 +545,18 @@ export default function AdminPage() {
       <DashboardHeader memberData={memberData} />
 
       <main className="container mx-auto p-4 md:p-6 max-w-6xl">
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-3xl font-black">Admin Dashboard</h1>
-          <Button
-            onClick={() => setAddSessionDialogOpen(true)}
-            className="bg-black hover:bg-gray-800 text-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-0.5 transition-transform"
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Add Session Manually
-          </Button>
+        {/* Header Section - Improved Mobile Layout */}
+        <div className="mb-6 space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <h1 className="text-2xl md:text-3xl font-black">Admin Dashboard</h1>
+            <Button
+              onClick={() => setAddSessionDialogOpen(true)}
+              className="bg-black hover:bg-gray-800 text-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-0.5 transition-transform w-full sm:w-auto"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Add Session
+            </Button>
+          </div>
         </div>
 
         <StatusMessage message={statusMessage} />
@@ -582,7 +585,7 @@ export default function AdminPage() {
                                 <h3 className="font-bold text-lg">{interest.topic}</h3>
                                 <p className="text-sm text-gray-600">By {interest.member_name}</p>
                               </div>
-                              <div className="grid grid-cols-2 gap-2 text-sm">
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
                                 <div>
                                   <span className="font-semibold">Type:</span> {interest.type}
                                 </div>
@@ -593,7 +596,7 @@ export default function AdminPage() {
                               {interest.description && (
                                 <p className="text-sm text-gray-700">{interest.description}</p>
                               )}
-                              <div className="flex gap-2 pt-2">
+                              <div className="flex flex-col sm:flex-row gap-2 pt-2">
                                 <Button
                                   onClick={() => handleApprove(interest)}
                                   disabled={processingId === interest.id}
@@ -668,7 +671,7 @@ export default function AdminPage() {
 
         {/* Conflict Dialog */}
         <Dialog open={conflictDialogOpen} onOpenChange={setConflictDialogOpen}>
-          <DialogContent>
+          <DialogContent className="max-w-[90vw] sm:max-w-md">
             <DialogHeader>
               <DialogTitle>Date Conflict Detected</DialogTitle>
             </DialogHeader>
@@ -684,7 +687,7 @@ export default function AdminPage() {
                     </div>
                   </AlertDescription>
                 </Alert>
-                <div className="flex gap-2">
+                <div className="flex flex-col sm:flex-row gap-2">
                   <Button
                     onClick={() => {
                       setConflictDialogOpen(false)
@@ -712,7 +715,7 @@ export default function AdminPage() {
 
         {/* Reschedule Dialog */}
         <Dialog open={rescheduleDialogOpen} onOpenChange={setRescheduleDialogOpen}>
-          <DialogContent>
+          <DialogContent className="max-w-[90vw] sm:max-w-md">
             <DialogHeader>
               <DialogTitle>Reschedule Session</DialogTitle>
             </DialogHeader>
@@ -735,7 +738,7 @@ export default function AdminPage() {
                     min={new Date().toISOString().split("T")[0]}
                   />
                 </div>
-                <div className="flex gap-2">
+                <div className="flex flex-col sm:flex-row gap-2">
                   <Button
                     onClick={submitReschedule}
                     disabled={!newDate || processingId === rescheduleSession.id}
@@ -762,11 +765,11 @@ export default function AdminPage() {
 
         {/* Add Session Manually Dialog */}
         <Dialog open={addSessionDialogOpen} onOpenChange={setAddSessionDialogOpen}>
-          <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogContent className="max-w-[90vw] sm:max-w-2xl max-h-[85vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Add Session Manually</DialogTitle>
             </DialogHeader>
-            <div className="space-y-4">
+            <form onSubmit={handleManualSessionSubmit} className="space-y-4">
               <div>
                 <label htmlFor="manualMember" className="block text-sm font-medium mb-1">
                   Handler <span className="text-red-500">*</span>
@@ -841,15 +844,16 @@ export default function AdminPage() {
                 />
               </div>
 
-              <div className="flex gap-2 pt-2">
+              <div className="flex flex-col sm:flex-row gap-2 pt-2">
                 <Button
-                  onClick={handleManualSessionSubmit}
+                  type="submit"
                   disabled={isSubmittingManual}
                   className="flex-1 bg-black hover:bg-gray-800 text-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]"
                 >
                   {isSubmittingManual ? "Adding..." : "Add Session"}
                 </Button>
                 <Button
+                  type="button"
                   onClick={() => {
                     setAddSessionDialogOpen(false)
                     setManualMemberId("")
@@ -864,13 +868,13 @@ export default function AdminPage() {
                   Cancel
                 </Button>
               </div>
-            </div>
+            </form>
           </DialogContent>
         </Dialog>
 
         {/* Feedback Dialog */}
         <Dialog open={feedbackDialogOpen} onOpenChange={setFeedbackDialogOpen}>
-          <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogContent className="max-w-[90vw] sm:max-w-2xl max-h-[80vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Session Feedback - {selectedSession?.topic}</DialogTitle>
             </DialogHeader>
