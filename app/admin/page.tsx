@@ -133,7 +133,12 @@ export default function AdminPage() {
         .order("name", { ascending: true })
 
       if (error) throw error
-      setMembers(data || [])
+      // Ensure IDs are strings for consistent comparison
+      const formattedData = data?.map(member => ({
+        ...member,
+        id: String(member.id)
+      })) || []
+      setMembers(formattedData)
     } catch (error) {
       console.error("Failed to fetch members:", error)
     }
@@ -501,7 +506,7 @@ export default function AdminPage() {
         time: "01:00 PM",
         type: manualType,
         handler: selectedMember.name,
-        handler_id: parseInt(manualMemberId),
+        handler_id: manualMemberId,
         description: manualDescription,
         is_approved: true,
       })
@@ -774,13 +779,16 @@ export default function AdminPage() {
                 <label htmlFor="manualMember" className="block text-sm font-medium mb-1">
                   Handler <span className="text-red-500">*</span>
                 </label>
-                <Select value={manualMemberId} onValueChange={setManualMemberId}>
+                <Select value={manualMemberId} onValueChange={(value) => {
+                  console.log("Selected member ID:", value)
+                  setManualMemberId(value)
+                }}>
                   <SelectTrigger id="manualMember" className="border-2 border-black">
                     <SelectValue placeholder="Select member" />
                   </SelectTrigger>
                   <SelectContent>
                     {members.map((member) => (
-                      <SelectItem key={member.id} value={member.id}>
+                      <SelectItem key={member.id} value={String(member.id)}>
                         {member.name}
                       </SelectItem>
                     ))}
