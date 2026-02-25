@@ -40,6 +40,15 @@ export default function AuthPage() {
     setLoginMessage({ text: "", type: "" })
 
     try {
+      if (!loginEmail) {
+        setLoginMessage({
+          text: "Please enter your email address.",
+          type: "error"
+        })
+        setLoading(false)
+        return
+      }
+
       // First check if user exists in members table
       const { data: memberData, error: memberError } = await supabase
         .from("members")
@@ -267,7 +276,7 @@ export default function AuthPage() {
                   <Label htmlFor="login-password" className="font-bold">
                     Password
                   </Label>
-                  <ForgotPasswordDialog />
+                  <ForgotPasswordDialog onOpen={() => setLoginMessage({ text: "", type: "" })} />
                 </div>
                 <Input
                   id="login-password"

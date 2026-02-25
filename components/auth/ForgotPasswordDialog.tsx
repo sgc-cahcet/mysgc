@@ -230,7 +230,7 @@ const DialogContentWrapper = ({
 )
 
 
-export function ForgotPasswordDialog() {
+export function ForgotPasswordDialog({ onOpen }: { onOpen?: () => void }) {
     const [step, setStep] = useState<Step>("request")
     const [email, setEmail] = useState("")
     const [otp, setOtp] = useState("")
@@ -246,6 +246,9 @@ export function ForgotPasswordDialog() {
 
     const handleOpenChange = (isOpen: boolean) => {
         setOpen(isOpen)
+        if (isOpen && onOpen) {
+            onOpen()
+        }
         if (!isOpen) {
             // Reset state when closing
             setTimeout(() => {
@@ -261,9 +264,27 @@ export function ForgotPasswordDialog() {
 
     const handleSendOTP = async (e: React.FormEvent) => {
         e.preventDefault()
+        e.stopPropagation()
         setLoading(true)
 
         try {
+            // Check if user exists in members table first
+            const { data: memberData, error: memberError } = await supabase
+                .from("members")
+                .select("email")
+                .eq("email", email)
+                .maybeSingle()
+
+            if (memberError || !memberData) {
+                toast({
+                    title: "Access Denied",
+                    description: "This email is not registered in SGC's members list.",
+                    variant: "destructive",
+                })
+                setLoading(false)
+                return
+            }
+
             const { error } = await supabase.auth.resetPasswordForEmail(email)
 
             if (error) {
@@ -292,6 +313,7 @@ export function ForgotPasswordDialog() {
 
     const handleVerifyAndReset = async (e: React.FormEvent) => {
         e.preventDefault()
+        e.stopPropagation()
 
         if (newPassword !== confirmPassword) {
             toast({
@@ -380,12 +402,20 @@ export function ForgotPasswordDialog() {
     }
 
     const Trigger = (
-        <button
-            type="button"
-            className="text-sm font-bold text-gray-600 hover:text-black transition-colors underline decoration-2 underline-offset-4"
+        <span
+            role="button"
+            tabIndex={0}
+            className="text-sm font-bold text-gray-600 hover:text-black transition-colors underline decoration-2 underline-offset-4 cursor-pointer"
+            onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    setOpen(true);
+                    if (onOpen) onOpen();
+                }
+            }}
         >
             Forgot Password?
-        </button>
+        </span>
     )
 
     if (isMobile) {
