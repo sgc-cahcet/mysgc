@@ -264,22 +264,6 @@ export function ForgotPasswordDialog() {
         setLoading(true)
 
         try {
-            const { data: memberData, error: memberError } = await supabase
-                .from("members")
-                .select("email")
-                .eq("email", email)
-                .single()
-
-            if (memberError || !memberData) {
-                toast({
-                    title: "Access Denied",
-                    description: "This email is not registered in our members list.",
-                    variant: "destructive",
-                })
-                setLoading(false)
-                return
-            }
-
             const { error } = await supabase.auth.resetPasswordForEmail(email)
 
             if (error) {
@@ -396,7 +380,10 @@ export function ForgotPasswordDialog() {
     }
 
     const Trigger = (
-        <button className="text-sm font-bold text-gray-600 hover:text-black transition-colors underline decoration-2 underline-offset-4">
+        <button
+            type="button"
+            className="text-sm font-bold text-gray-600 hover:text-black transition-colors underline decoration-2 underline-offset-4"
+        >
             Forgot Password?
         </button>
     )
