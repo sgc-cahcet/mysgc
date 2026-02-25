@@ -11,22 +11,23 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Loader2 } from "lucide-react"
+import { ForgotPasswordDialog } from "@/components/auth/ForgotPasswordDialog"
 
 export default function AuthPage() {
   // Login state
   const [loginEmail, setLoginEmail] = useState("")
   const [loginPassword, setLoginPassword] = useState("")
-  
+
   // Signup state
   const [signupEmail, setSignupEmail] = useState("")
   const [signupPassword, setSignupPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
   const [fullName, setFullName] = useState("")
-  
+
   // Status message states
   const [loginMessage, setLoginMessage] = useState({ text: "", type: "" })
   const [signupMessage, setSignupMessage] = useState({ text: "", type: "" })
-  
+
   const [loading, setLoading] = useState(false)
   const [checkingSession, setCheckingSession] = useState(true)
   const [isRedirecting, setIsRedirecting] = useState(false)
@@ -47,9 +48,9 @@ export default function AuthPage() {
         .single()
 
       if (memberError || !memberData) {
-        setLoginMessage({ 
-          text: "Access Denied: Your email is not registered in SGC's members list.", 
-          type: "error" 
+        setLoginMessage({
+          text: "Access Denied: Your email is not registered in SGC's members list.",
+          type: "error"
         })
         setLoading(false)
         return
@@ -62,16 +63,16 @@ export default function AuthPage() {
       })
 
       if (error) {
-        setLoginMessage({ 
-          text: `Login Failed: ${error.message}`, 
-          type: "error" 
+        setLoginMessage({
+          text: `Login Failed: ${error.message}`,
+          type: "error"
         })
       } else {
-        setLoginMessage({ 
-          text: "Login Successful! Redirecting to dashboard...", 
-          type: "success" 
+        setLoginMessage({
+          text: "Login Successful! Redirecting to dashboard...",
+          type: "success"
         })
-        
+
         setIsRedirecting(true)
         // Short delay before redirect
         setTimeout(() => {
@@ -79,9 +80,9 @@ export default function AuthPage() {
         }, 1500)
       }
     } catch (error) {
-      setLoginMessage({ 
-        text: "An error occurred. Please try again later.", 
-        type: "error" 
+      setLoginMessage({
+        text: "An error occurred. Please try again later.",
+        type: "error"
       })
     } finally {
       setLoading(false)
@@ -96,9 +97,9 @@ export default function AuthPage() {
     try {
       // Check if passwords match
       if (signupPassword !== confirmPassword) {
-        setSignupMessage({ 
-          text: "Passwords don't match. Please ensure both passwords are the same.", 
-          type: "error" 
+        setSignupMessage({
+          text: "Passwords don't match. Please ensure both passwords are the same.",
+          type: "error"
         })
         setLoading(false)
         return
@@ -112,9 +113,9 @@ export default function AuthPage() {
         .single()
 
       if (memberError || !memberData) {
-        setSignupMessage({ 
-          text: "Access Denied: This email is not registered in SGC's members list.", 
-          type: "error" 
+        setSignupMessage({
+          text: "Access Denied: This email is not registered in SGC's members list.",
+          type: "error"
         })
         setLoading(false)
         return
@@ -122,9 +123,9 @@ export default function AuthPage() {
 
       // Check if the user is already registered
       if (memberData.is_registered) {
-        setSignupMessage({ 
-          text: "An account with this email already exists. Please login instead.", 
-          type: "error" 
+        setSignupMessage({
+          text: "An account with this email already exists. Please login instead.",
+          type: "error"
         })
         setLoading(false)
         return
@@ -143,9 +144,9 @@ export default function AuthPage() {
       })
 
       if (error) {
-        setSignupMessage({ 
-          text: `Signup Failed: ${error.message}`, 
-          type: "error" 
+        setSignupMessage({
+          text: `Signup Failed: ${error.message}`,
+          type: "error"
         })
       } else {
         // Update the member record to mark as registered
@@ -153,28 +154,28 @@ export default function AuthPage() {
           .from("members")
           .update({ is_registered: true })
           .eq("email", signupEmail)
-          
+
         if (updateError) {
           console.error("Failed to update member record:", updateError)
         }
-        
+
         // Since we're not requiring email verification, we can automatically sign in
         const { error: signInError } = await supabase.auth.signInWithPassword({
           email: signupEmail,
           password: signupPassword,
         })
-        
+
         if (signInError) {
-          setSignupMessage({ 
-            text: "Your account was created, but you need to login manually.", 
-            type: "success" 
+          setSignupMessage({
+            text: "Your account was created, but you need to login manually.",
+            type: "success"
           })
         } else {
-          setSignupMessage({ 
-            text: "Signup Successful! Redirecting to dashboard...", 
-            type: "success" 
+          setSignupMessage({
+            text: "Signup Successful! Redirecting to dashboard...",
+            type: "success"
           })
-          
+
           setIsRedirecting(true)
           // Short delay before redirect
           setTimeout(() => {
@@ -183,9 +184,9 @@ export default function AuthPage() {
         }
       }
     } catch (error) {
-      setSignupMessage({ 
-        text: "An error occurred. Please try again later.", 
-        type: "error" 
+      setSignupMessage({
+        text: "An error occurred. Please try again later.",
+        type: "error"
       })
     } finally {
       setLoading(false)
@@ -193,27 +194,9 @@ export default function AuthPage() {
   }
 
   useEffect(() => {
-    const checkSession = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession()
-        
-        if (session) {
-          // User is already logged in, set redirecting state and redirect
-          setIsRedirecting(true)
-          router.push("/dashboard")
-          // Keep checkingSession true to prevent form from rendering
-          return
-        }
-      } catch (error) {
-        console.error("Error checking session:", error)
-      } finally {
-        // Only set checkingSession to false if we're not redirecting
-        setCheckingSession(false)
-      }
-    }
-    
-    checkSession()
-  }, [router, supabase.auth])
+    // Only set checkingSession to false as middleware handles the primary auth redirection
+    setCheckingSession(false)
+  }, [])
 
   // Show loader while checking session OR while redirecting
   if (checkingSession || isRedirecting) {
@@ -260,7 +243,7 @@ export default function AuthPage() {
             <TabsTrigger value="login" className="text-lg font-bold">Login</TabsTrigger>
             <TabsTrigger value="signup" className="text-lg font-bold">Sign Up</TabsTrigger>
           </TabsList>
-          
+
           <TabsContent value="login">
             <h1 className="text-3xl font-black text-center mb-6 tracking-tight">Member Login</h1>
 
@@ -280,9 +263,12 @@ export default function AuthPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="login-password" className="font-bold">
-                  Password
-                </Label>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="login-password" className="font-bold">
+                    Password
+                  </Label>
+                  <ForgotPasswordDialog />
+                </div>
                 <Input
                   id="login-password"
                   type="password"
@@ -294,11 +280,10 @@ export default function AuthPage() {
               </div>
 
               {loginMessage.text && (
-                <div className={`p-3 rounded border text-sm ${
-                  loginMessage.type === "error" 
-                    ? "bg-red-50 border-red-300 text-red-800" 
-                    : "bg-green-50 border-green-300 text-green-800"
-                }`}>
+                <div className={`p-3 rounded border text-sm ${loginMessage.type === "error"
+                  ? "bg-red-50 border-red-300 text-red-800"
+                  : "bg-green-50 border-green-300 text-green-800"
+                  }`}>
                   {loginMessage.text}
                 </div>
               )}
@@ -312,7 +297,7 @@ export default function AuthPage() {
               </Button>
             </form>
           </TabsContent>
-          
+
           <TabsContent value="signup">
             <h1 className="text-3xl font-black text-center mb-6 tracking-tight">Member Sign Up</h1>
 
@@ -330,7 +315,7 @@ export default function AuthPage() {
                   required
                 />
               </div>
-              
+
               <div className="space-y-2">
                 <Label htmlFor="signup-email" className="font-bold">
                   Email
@@ -359,7 +344,7 @@ export default function AuthPage() {
                   required
                 />
               </div>
-              
+
               <div className="space-y-2">
                 <Label htmlFor="confirm-password" className="font-bold">
                   Confirm Password
@@ -375,11 +360,10 @@ export default function AuthPage() {
               </div>
 
               {signupMessage.text && (
-                <div className={`p-3 rounded border text-sm ${
-                  signupMessage.type === "error" 
-                    ? "bg-red-50 border-red-300 text-red-800" 
-                    : "bg-green-50 border-green-300 text-green-800"
-                }`}>
+                <div className={`p-3 rounded border text-sm ${signupMessage.type === "error"
+                  ? "bg-red-50 border-red-300 text-red-800"
+                  : "bg-green-50 border-green-300 text-green-800"
+                  }`}>
                   {signupMessage.text}
                 </div>
               )}

@@ -42,23 +42,20 @@ export default function DashboardPage() {
   const supabase = createClientComponentClient()
 
   useEffect(() => {
-    const checkSession = async () => {
+    const initDashboard = async () => {
       const {
         data: { session },
       } = await supabase.auth.getSession()
 
-      if (!session) {
-        router.push("/login")
-        return
+      if (session) {
+        fetchMemberData(session.user.email!)
+        fetchTodaySessions()
+        checkFeedbackTime()
       }
-
-      fetchMemberData(session.user.email!)
-      fetchTodaySessions()
-      checkFeedbackTime()
     }
 
-    checkSession()
-  }, [router, supabase])
+    initDashboard()
+  }, [supabase])
 
   const fetchMemberData = async (email: string) => {
     try {
