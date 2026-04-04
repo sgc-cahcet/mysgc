@@ -1,20 +1,31 @@
 "use client"
 
-import { useState, useMemo, useEffect } from "react"
+import { useEffect, useState } from "react"
+import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { ChevronDown, Calendar, CheckCircle2, XCircle, TrendingUp, Clock } from "lucide-react"
-import { supabase } from "@/lib/supabase"
+import { formatDatabaseDate, parseDatabaseDate } from "@/lib/date-utils"
 
 interface AttendanceCardProps {
   memberId: string
+}
+
+interface MonthlyAttendanceSummary {
+  month_key: string
+  display_month: string
+  total_working_days: number
+  present_days: number
+  absent_dates: string[]
+  percentage: number
 }
 
 export function AttendanceCard({ memberId }: AttendanceCardProps) {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
   const [selectedMonth, setSelectedMonth] = useState<string>("")
-  const [allAttendanceData, setAllAttendanceData] = useState<any[]>([])
+  const [monthlyData, setMonthlyData] = useState<MonthlyAttendanceSummary[]>([])
   const [loading, setLoading] = useState(true)
+  const supabase = createClientComponentClient()
 
   useEffect(() => {
     if (memberId) {
@@ -23,95 +34,63 @@ export function AttendanceCard({ memberId }: AttendanceCardProps) {
   }, [memberId])
 
   const fetchAttendanceData = async () => {
+    setLoading(true)
+
     try {
+      const memberIdNumber = Number(memberId)
       const { data, error } = await supabase
-        .from("attendance")
-        .select(`
-          *,
-          members (name, department, role)
-        `)
+        .rpc("get_member_attendance_summary", {
+          p_member_id: memberIdNumber,
+        })
 
       if (error) {
         console.error("Error fetching attendance:", error)
         return
       }
 
-      setAllAttendanceData(data || [])
+      const formattedData = ((data as MonthlyAttendanceSummary[] | null) || []).map((item) => ({
+        ...item,
+        absent_dates: item.absent_dates || [],
+        percentage: Number(item.percentage || 0),
+      }))
+
+      setMonthlyData(formattedData)
     } catch (error) {
       console.error("Error in fetchAttendanceData:", error)
     } finally {
       setLoading(false)
     }
   }
-
-  const monthlyData = useMemo(() => {
-    if (allAttendanceData.length === 0 || !memberId) return []
-
-    const monthsWithRecords = new Set<string>()
-    
-    allAttendanceData.forEach(record => {
-      const date = new Date(record.date)
-      const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
-      monthsWithRecords.add(monthKey)
-    })
-    
-    return Array.from(monthsWithRecords)
-      .map(monthKey => {
-        const [year, month] = monthKey.split('-').map(Number)
-        
-        const monthlyRecords = allAttendanceData.filter(record => {
-          const recordDate = new Date(record.date)
-          return recordDate.getFullYear() === year && 
-                 recordDate.getMonth() === month - 1
-        })
-        
-        const workingDaysInMonth = Array.from(new Set(monthlyRecords.map(record => record.date))).sort()
-        const totalWorkingDays = workingDaysInMonth.length
-        
-        const presentDates = new Set(
-          monthlyRecords
-            .filter(record => record.member_id === memberId && record.is_present)
-            .map(record => record.date)
-        )
-        
-        const presentDays = presentDates.size
-        const absentDates = workingDaysInMonth.filter(date => !presentDates.has(date))
-        const percentage = totalWorkingDays > 0 ? (presentDays / totalWorkingDays) * 100 : 0
-        
-        const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 
-                           'July', 'August', 'September', 'October', 'November', 'December']
-        const displayMonth = `${monthNames[month - 1]} ${year}`
-        
-        return {
-          monthKey,
-          displayMonth,
-          percentage,
-          absentDates,
-          totalWorkingDays,
-          presentDays
-        }
-      })
-      .sort((a, b) => b.monthKey.localeCompare(a.monthKey))
-  }, [allAttendanceData, memberId])
   
-  useMemo(() => {
+  useEffect(() => {
     if (monthlyData.length > 0 && !selectedMonth) {
-      setSelectedMonth(monthlyData[0].monthKey)
+      setSelectedMonth(monthlyData[0].month_key)
+    } else if (monthlyData.length === 0) {
+      setSelectedMonth("")
     }
   }, [monthlyData, selectedMonth])
   
-  const currentMonthData = monthlyData.find(m => m.monthKey === selectedMonth) || 
-    { displayMonth: "No Data", percentage: 0, absentDates: [], totalWorkingDays: 0, presentDays: 0 }
-  
-  const { percentage, absentDates, displayMonth, totalWorkingDays, presentDays } = currentMonthData
+  const currentMonthData = monthlyData.find((month) => month.month_key === selectedMonth) || {
+    month_key: "",
+    display_month: "No Data",
+    percentage: 0,
+    absent_dates: [],
+    total_working_days: 0,
+    present_days: 0,
+  }
+
+  const percentage = currentMonthData.percentage
+  const absentDates = currentMonthData.absent_dates || []
+  const displayMonth = currentMonthData.display_month
+  const totalWorkingDays = currentMonthData.total_working_days
+  const presentDays = currentMonthData.present_days
   
   const sortedDates = [...absentDates].sort((a, b) => 
-    new Date(b).getTime() - new Date(a).getTime()
+    parseDatabaseDate(b).getTime() - parseDatabaseDate(a).getTime()
   )
   
   const formatDate = (dateString: string) => {
-    const date = new Date(dateString)
-    return date.toLocaleDateString('en-US', { 
+    return formatDatabaseDate(dateString, { 
       year: 'numeric', 
       month: 'short', 
       day: 'numeric' 
@@ -180,13 +159,13 @@ export function AttendanceCard({ memberId }: AttendanceCardProps) {
                 <div className="absolute right-0 mt-2 w-56 bg-white border-2 border-black rounded-lg shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] z-20 max-h-64 overflow-y-auto">
                   {monthlyData.map((data) => (
                     <button
-                      key={data.monthKey}
-                      onClick={() => handleMonthSelect(data.monthKey)}
+                      key={data.month_key}
+                      onClick={() => handleMonthSelect(data.month_key)}
                       className={`w-full text-left px-4 py-3 hover:bg-gray-100 transition-colors text-sm font-bold border-b border-gray-200 last:border-b-0 ${
-                        data.monthKey === selectedMonth ? 'bg-yellow-100 text-black' : 'text-gray-700'
+                        data.month_key === selectedMonth ? 'bg-yellow-100 text-black' : 'text-gray-700'
                       }`}
                     >
-                      {data.displayMonth}
+                      {data.display_month}
                     </button>
                   ))}
                 </div>

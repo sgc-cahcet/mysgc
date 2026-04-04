@@ -2,6 +2,7 @@
 
 import { Star } from "lucide-react"
 import type { Feedback } from "@/lib/session-types"
+import { formatDatabaseDate } from "@/lib/date-utils"
 
 interface FeedbackDisplayProps {
   feedback: Feedback[]
@@ -45,7 +46,11 @@ export function FeedbackDisplay({ feedback, averageRating }: FeedbackDisplayProp
               {renderStars(item.rating)}
             </div>
             <p className="text-sm text-gray-600">{item.comment || "No comment provided"}</p>
-            <div className="text-xs text-gray-400 mt-2">{new Date(item.created_at).toLocaleDateString()}</div>
+            <div className="text-xs text-gray-400 mt-2">
+              {item.date
+                ? formatDatabaseDate(item.date, { year: "numeric", month: "short", day: "numeric" })
+                : new Date(item.created_at).toLocaleDateString()}
+            </div>
           </div>
         ))}
       </div>

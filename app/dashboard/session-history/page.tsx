@@ -18,6 +18,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
+import { formatDatabaseDate } from "@/lib/date-utils"
 
 interface MemberData {
   id: string
@@ -125,33 +126,38 @@ export default function SessionHistoryPage() {
         return
       }
 
-      // Fetch feedback for each session
-      const sessionsWithFeedback: Session[] = []
+      const sessionIds = sessionsData.map((session) => session.id)
+      const { data: feedbackData, error: feedbackError } = await supabase
+        .from("session_feedback")
+        .select("*")
+        .in("session_id", sessionIds)
+        .order("created_at", { ascending: false })
 
-      for (const session of sessionsData) {
-        const { data: feedbackData, error: feedbackError } = await supabase
-          .from("session_feedback")
-          .select("*")
-          .eq("session_id", session.id)
-          .order("created_at", { ascending: false })
-
-        if (feedbackError) {
-          console.error("Error fetching feedback:", feedbackError)
-        }
-
-        // Calculate average rating
-        let averageRating = 0
-        if (feedbackData && feedbackData.length > 0) {
-          const sum = feedbackData.reduce((acc, item) => acc + item.rating, 0)
-          averageRating = sum / feedbackData.length
-        }
-
-        sessionsWithFeedback.push({
-          ...session,
-          feedback: feedbackData || [],
-          average_rating: feedbackData && feedbackData.length > 0 ? Number(averageRating.toFixed(1)) : undefined,
-        })
+      if (feedbackError) {
+        console.error("Error fetching feedback:", feedbackError)
       }
+
+      const feedbackBySession = new Map<string, Feedback[]>()
+
+      for (const item of feedbackData || []) {
+        const existingFeedback = feedbackBySession.get(item.session_id) || []
+        existingFeedback.push(item)
+        feedbackBySession.set(item.session_id, existingFeedback)
+      }
+
+      const sessionsWithFeedback: Session[] = sessionsData.map((session) => {
+        const sessionFeedback = feedbackBySession.get(session.id) || []
+        const averageRating =
+          sessionFeedback.length > 0
+            ? sessionFeedback.reduce((acc, item) => acc + item.rating, 0) / sessionFeedback.length
+            : 0
+
+        return {
+          ...session,
+          feedback: sessionFeedback,
+          average_rating: sessionFeedback.length > 0 ? Number(averageRating.toFixed(1)) : undefined,
+        }
+      })
 
       setSessions(sessionsWithFeedback)
       setLoading(false)
@@ -226,7 +232,7 @@ export default function SessionHistoryPage() {
                   <div className="flex flex-wrap gap-2 mt-2">
                     <Badge variant="outline" className="flex items-center gap-1 border-2 border-black">
                       <Calendar size={14} />
-                      {new Date(session.date).toLocaleDateString("en-US", {
+                      {formatDatabaseDate(session.date, {
                         year: "numeric",
                         month: "short",
                         day: "numeric",
@@ -284,7 +290,7 @@ export default function SessionHistoryPage() {
                                   <div className="flex justify-between items-start mb-2">
                                     <div>{renderStars(feedback.rating)}</div>
                                     <span className="text-xs text-gray-500">
-                                      {new Date(feedback.date).toLocaleDateString("en-US", {
+                                      {formatDatabaseDate(feedback.date, {
                                         year: "numeric",
                                         month: "short",
                                         day: "numeric",
