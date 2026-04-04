@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { DashboardHeader } from "@/components/dashboard-header"
-import { useToast } from "@/hooks/use-toast"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { SessionInterestCard } from "@/components/admin/session-interest-card"
 import { FeedbackDisplay } from "@/components/admin/feedback-display"
@@ -18,6 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { CheckCircle, AlertCircle, Plus, Calendar } from "lucide-react"
 import type { MemberData, SessionInterest, Feedback, SessionWithFeedback } from "@/lib/session-types"
+import { getCurrentDateInTimeZone } from "@/lib/date-utils"
 
 interface Member {
   id: string
@@ -29,6 +29,23 @@ interface ConflictingSession {
   topic: string
   member_name: string
   date: string
+}
+
+interface SessionRow {
+  id: string
+  title: string
+  handler: string
+  date: string
+}
+
+interface SessionFeedbackRow {
+  id: string
+  session_id: string
+  member_id: number | null
+  rating: number
+  comments: string | null
+  date: string
+  created_at: string
 }
 
 export default function AdminPage() {
@@ -58,7 +75,6 @@ export default function AdminPage() {
   const [isSubmittingManual, setIsSubmittingManual] = useState(false)
 
   const router = useRouter()
-  const { toast } = useToast()
   const supabase = createClientComponentClient()
 
   useEffect(() => {
@@ -93,6 +109,8 @@ export default function AdminPage() {
   useEffect(() => {
     if (sessionInterests.filter((s) => s.is_approved).length > 0) {
       fetchFeedbackForSessions()
+    } else {
+      setSessionsWithFeedback([])
     }
   }, [sessionInterests])
 
@@ -161,104 +179,106 @@ export default function AdminPage() {
 
   const fetchFeedbackForSessions = async () => {
     const approvedSessions = sessionInterests.filter((s) => s.is_approved)
-    const sessionsWithFeedback: SessionWithFeedback[] = []
+    if (approvedSessions.length === 0) {
+      setSessionsWithFeedback([])
+      return
+    }
 
-    for (const session of approvedSessions) {
-      try {
-        const { data: sessionData, error: sessionError } = await supabase
-          .from("sessions")
-          .select("id")
-          .eq("title", session.topic)
-          .eq("handler", session.member_name)
-          .single()
+    try {
+      const { data: sessionsData, error: sessionsError } = await supabase
+        .from("sessions")
+        .select("id, title, handler, date")
+        .eq("is_approved", true)
 
-        if (sessionError) {
-          console.error("Error finding session:", sessionError)
-          sessionsWithFeedback.push({
-            ...session,
-            feedback: [],
-            average_rating: 0,
-          })
-          continue
+      if (sessionsError) throw sessionsError
+
+      const sessionMap = new Map<string, SessionRow>()
+
+      for (const session of (sessionsData || []) as SessionRow[]) {
+        sessionMap.set(`${session.title}::${session.handler}::${session.date}`, session)
+      }
+
+      const matchedSessionIds = approvedSessions
+        .map((session) => sessionMap.get(`${session.topic}::${session.member_name}::${session.preferred_date}`)?.id)
+        .filter((sessionId): sessionId is string => Boolean(sessionId))
+
+      let feedbackRows: SessionFeedbackRow[] = []
+
+      if (matchedSessionIds.length > 0) {
+        const { data: feedbackData, error: feedbackError } = await supabase
+          .from("session_feedback")
+          .select("id, session_id, member_id, rating, comments, date, created_at")
+          .in("session_id", matchedSessionIds)
+          .order("created_at", { ascending: false })
+
+        if (feedbackError) throw feedbackError
+        feedbackRows = (feedbackData || []) as SessionFeedbackRow[]
+      }
+
+      const memberIds = Array.from(
+        new Set(
+          feedbackRows
+            .map((item) => item.member_id)
+            .filter((memberId): memberId is number => typeof memberId === "number"),
+        ),
+      )
+
+      const memberNameMap = new Map<number, string>()
+
+      if (memberIds.length > 0) {
+        const { data: membersData, error: membersError } = await supabase
+          .from("members")
+          .select("id, name")
+          .in("id", memberIds)
+
+        if (membersError) throw membersError
+
+        for (const member of membersData || []) {
+          memberNameMap.set(member.id, member.name)
         }
+      }
 
-        if (sessionData) {
-          const { data: feedbackData, error: feedbackError } = await supabase
-            .from("session_feedback")
-            .select(`
-              id,
-              session_id,
-              member_id,
-              rating,
-              comments,
-              date,
-              created_at
-            `)
-            .eq("session_id", sessionData.id)
-            .order("created_at", { ascending: false })
+      const feedbackBySession = new Map<string, Feedback[]>()
 
-          if (feedbackError) {
-            console.error("Error fetching feedback:", feedbackError)
-            throw feedbackError
-          }
+      for (const item of feedbackRows) {
+        const sessionFeedback = feedbackBySession.get(item.session_id) || []
+        sessionFeedback.push({
+          id: item.id,
+          session_id: item.session_id,
+          member_id: item.member_id ? String(item.member_id) : undefined,
+          member_name: item.member_id ? memberNameMap.get(item.member_id) || "Anonymous" : "Anonymous",
+          rating: item.rating,
+          comment: item.comments || "",
+          date: item.date,
+          created_at: item.created_at,
+        })
+        feedbackBySession.set(item.session_id, sessionFeedback)
+      }
 
-          const feedback: Feedback[] = []
-
-          if (feedbackData && feedbackData.length > 0) {
-            for (const item of feedbackData) {
-              let memberName = "Anonymous"
-
-              if (item.member_id) {
-                const { data: memberData } = await supabase
-                  .from("members")
-                  .select("name")
-                  .eq("id", item.member_id)
-                  .single()
-
-                if (memberData) {
-                  memberName = memberData.name
-                }
-              }
-
-              feedback.push({
-                id: item.id,
-                session_id: item.session_id,
-                member_id: item.member_id,
-                member_name: memberName,
-                rating: item.rating,
-                comment: item.comments || "",
-                date: item.date,
-                created_at: item.created_at,
-              })
-            }
-          }
-
-          const average_rating =
+      setSessionsWithFeedback(
+        approvedSessions.map((session) => {
+          const matchedSession = sessionMap.get(`${session.topic}::${session.member_name}::${session.preferred_date}`)
+          const feedback = matchedSession ? feedbackBySession.get(matchedSession.id) || [] : []
+          const averageRating =
             feedback.length > 0 ? feedback.reduce((sum, item) => sum + item.rating, 0) / feedback.length : 0
 
-          sessionsWithFeedback.push({
+          return {
             ...session,
             feedback,
-            average_rating: Number(average_rating.toFixed(1)),
-          })
-        } else {
-          sessionsWithFeedback.push({
-            ...session,
-            feedback: [],
-            average_rating: 0,
-          })
-        }
-      } catch (error) {
-        console.error("Error processing session feedback:", error)
-        sessionsWithFeedback.push({
+            average_rating: Number(averageRating.toFixed(1)),
+          }
+        }),
+      )
+    } catch (error) {
+      console.error("Error processing session feedback:", error)
+      setSessionsWithFeedback(
+        approvedSessions.map((session) => ({
           ...session,
           feedback: [],
           average_rating: 0,
-        })
-      }
+        })),
+      )
     }
-
-    setSessionsWithFeedback(sessionsWithFeedback)
   }
 
   const checkDateConflict = async (date: string): Promise<ConflictingSession | null> => {
@@ -483,10 +503,10 @@ export default function AdminPage() {
       }
 
       // Insert into session_interests
-      const { data: interestData, error: interestError } = await supabase
+      const { error: interestError } = await supabase
         .from("session_interests")
         .insert({
-          member_id: manualMemberId,
+          member_id: Number(manualMemberId),
           member_name: selectedMember.name,
           topic: manualTopic,
           type: manualType,
@@ -494,8 +514,6 @@ export default function AdminPage() {
           description: manualDescription,
           is_approved: true,
         })
-        .select()
-        .single()
 
       if (interestError) throw interestError
 
@@ -506,7 +524,7 @@ export default function AdminPage() {
         time: "01:00 PM",
         type: manualType,
         handler: selectedMember.name,
-        handler_id: manualMemberId,
+        handler_id: Number(manualMemberId),
         description: manualDescription,
         is_approved: true,
       })
@@ -740,7 +758,7 @@ export default function AdminPage() {
                     value={newDate}
                     onChange={(e) => setNewDate(e.target.value)}
                     className="border-2 border-black"
-                    min={new Date().toISOString().split("T")[0]}
+                    min={getCurrentDateInTimeZone()}
                   />
                 </div>
                 <div className="flex flex-col sm:flex-row gap-2">
@@ -835,7 +853,7 @@ export default function AdminPage() {
                   value={manualDate}
                   onChange={(e) => setManualDate(e.target.value)}
                   className="border-2 border-black"
-                  min={new Date().toISOString().split("T")[0]}
+                  min={getCurrentDateInTimeZone()}
                 />
               </div>
 

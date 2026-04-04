@@ -5,6 +5,7 @@ import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useToast } from "@/hooks/use-toast"
+import { formatDatabaseDate, getCurrentDateInTimeZone } from "@/lib/date-utils"
 
 interface Session {
   id: string
@@ -20,43 +21,30 @@ export function SessionsCard() {
   const [todaySessions, setTodaySessions] = useState<Session[]>([])
   const [upcomingSessions, setUpcomingSessions] = useState<Session[]>([])
   const [loading, setLoading] = useState(true)
-  const [currentDate, setCurrentDate] = useState("")
+  const [, setCurrentDate] = useState("")
   const { toast } = useToast()
   const supabase = createClientComponentClient()
 
-  // Function to get current date in IST and format as YYYY-MM-DD
-  const getTodayDateIST = () => {
-    // Create date object for current time
-    const now = new Date()
-    
-    // Convert to IST (UTC+5:30)
-    const istTime = new Date(now.getTime() + (5.5 * 60 * 60 * 1000))
-    
-    // Format as YYYY-MM-DD
-    return istTime.toISOString().split("T")[0]
-  }
-
   useEffect(() => {
-    // Set initial date
-    const todayIST = getTodayDateIST()
-    setCurrentDate(todayIST)
-    
-    // Fetch sessions initially
-    fetchSessions(todayIST)
-    
-    // Set up timer to check for date changes
+    const syncSessions = () => {
+      const todayIST = getCurrentDateInTimeZone()
+      setCurrentDate((previousDate) => {
+        if (previousDate !== todayIST) {
+          fetchSessions(todayIST)
+        }
+
+        return todayIST
+      })
+    }
+
+    syncSessions()
+
     const timer = setInterval(() => {
-      const newDate = getTodayDateIST()
-      
-      // If date has changed, update and refetch
-      if (newDate !== currentDate) {
-        setCurrentDate(newDate)
-        fetchSessions(newDate)
-      }
-    }, 60000) // Check every minute
-    
+      syncSessions()
+    }, 60000)
+
     return () => clearInterval(timer)
-  }, [currentDate])
+  }, [])
 
   const fetchSessions = async (todayStr: string) => {
     try {
@@ -98,8 +86,7 @@ export function SessionsCard() {
   }
 
   const formatDate = (dateStr: string) => {
-    const date = new Date(dateStr)
-    return date.toLocaleDateString("en-US", {
+    return formatDatabaseDate(dateStr, {
       weekday: "short",
       month: "short",
       day: "numeric",

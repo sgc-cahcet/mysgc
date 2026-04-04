@@ -14,6 +14,7 @@ import {
 import { Trash2 } from "lucide-react"
 import { useState } from "react"
 import type { SessionInterest } from "@/lib/session-types"
+import { formatDatabaseDate } from "@/lib/date-utils"
 
 interface SessionInterestCardProps {
   interest: SessionInterest
@@ -71,7 +72,7 @@ export function SessionInterestCard({
           <span className="font-medium">
             {interest.is_approved ? "Date:" : "Preferred Date:"}
           </span>
-          <span>{new Date(interest.preferred_date).toLocaleDateString()}</span>
+          <span>{formatDatabaseDate(interest.preferred_date)}</span>
         </div>
         {!interest.is_approved && (
           <div className="flex flex-wrap gap-x-1">

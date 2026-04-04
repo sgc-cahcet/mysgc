@@ -13,6 +13,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Loader2 } from "lucide-react"
 import { ForgotPasswordDialog } from "@/components/auth/ForgotPasswordDialog"
 
+interface MemberRegistrationStatus {
+  member_exists: boolean
+  is_registered: boolean
+}
+
 export default function AuthPage() {
   // Login state
   const [loginEmail, setLoginEmail] = useState("")
@@ -49,14 +54,15 @@ export default function AuthPage() {
         return
       }
 
-      // First check if user exists in members table
-      const { data: memberData, error: memberError } = await supabase
-        .from("members")
-        .select("*")
-        .eq("email", loginEmail)
-        .single()
+      const normalizedEmail = loginEmail.trim().toLowerCase()
+      const { data: memberStatusData, error: memberError } = await supabase
+        .rpc("check_member_registration_status", {
+          p_email: normalizedEmail,
+        })
+        .maybeSingle()
+      const memberStatus = memberStatusData as MemberRegistrationStatus | null
 
-      if (memberError || !memberData) {
+      if (memberError || !memberStatus?.member_exists) {
         setLoginMessage({
           text: "Access Denied: Your email is not registered in SGC's members list.",
           type: "error"
@@ -67,7 +73,7 @@ export default function AuthPage() {
 
       // Proceed with authentication
       const { error } = await supabase.auth.signInWithPassword({
-        email: loginEmail,
+        email: normalizedEmail,
         password: loginPassword,
       })
 
@@ -114,14 +120,15 @@ export default function AuthPage() {
         return
       }
 
-      // First check if user exists in members table
-      const { data: memberData, error: memberError } = await supabase
-        .from("members")
-        .select("*")
-        .eq("email", signupEmail)
-        .single()
+      const normalizedEmail = signupEmail.trim().toLowerCase()
+      const { data: memberStatusData, error: memberError } = await supabase
+        .rpc("check_member_registration_status", {
+          p_email: normalizedEmail,
+        })
+        .maybeSingle()
+      const memberStatus = memberStatusData as MemberRegistrationStatus | null
 
-      if (memberError || !memberData) {
+      if (memberError || !memberStatus?.member_exists) {
         setSignupMessage({
           text: "Access Denied: This email is not registered in SGC's members list.",
           type: "error"
@@ -131,7 +138,7 @@ export default function AuthPage() {
       }
 
       // Check if the user is already registered
-      if (memberData.is_registered) {
+      if (memberStatus.is_registered) {
         setSignupMessage({
           text: "An account with this email already exists. Please login instead.",
           type: "error"
@@ -142,7 +149,7 @@ export default function AuthPage() {
 
       // Proceed with sign up
       const { data, error } = await supabase.auth.signUp({
-        email: signupEmail,
+        email: normalizedEmail,
         password: signupPassword,
         options: {
           data: {
@@ -162,7 +169,7 @@ export default function AuthPage() {
         const { error: updateError } = await supabase
           .from("members")
           .update({ is_registered: true })
-          .eq("email", signupEmail)
+          .eq("email", normalizedEmail)
 
         if (updateError) {
           console.error("Failed to update member record:", updateError)
@@ -170,7 +177,7 @@ export default function AuthPage() {
 
         // Since we're not requiring email verification, we can automatically sign in
         const { error: signInError } = await supabase.auth.signInWithPassword({
-          email: signupEmail,
+          email: normalizedEmail,
           password: signupPassword,
         })
 

@@ -50,6 +50,11 @@ interface DialogContentWrapperProps {
     setStep: (step: Step) => void
 }
 
+interface MemberRegistrationStatus {
+    member_exists: boolean
+    is_registered: boolean
+}
+
 const DialogContentWrapper = ({
     isMobile = false,
     step,
@@ -268,14 +273,15 @@ export function ForgotPasswordDialog({ onOpen }: { onOpen?: () => void }) {
         setLoading(true)
 
         try {
-            // Check if user exists in members table first
-            const { data: memberData, error: memberError } = await supabase
-                .from("members")
-                .select("email")
-                .eq("email", email)
+            const normalizedEmail = email.trim().toLowerCase()
+            const { data, error: memberError } = await supabase
+                .rpc("check_member_registration_status", {
+                    p_email: normalizedEmail,
+                })
                 .maybeSingle()
+            const memberStatus = data as MemberRegistrationStatus | null
 
-            if (memberError || !memberData) {
+            if (memberError || !memberStatus?.member_exists) {
                 toast({
                     title: "Access Denied",
                     description: "This email is not registered in SGC's members list.",
@@ -285,7 +291,7 @@ export function ForgotPasswordDialog({ onOpen }: { onOpen?: () => void }) {
                 return
             }
 
-            const { error } = await supabase.auth.resetPasswordForEmail(email)
+            const { error } = await supabase.auth.resetPasswordForEmail(normalizedEmail)
 
             if (error) {
                 toast({

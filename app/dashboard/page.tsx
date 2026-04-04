@@ -12,6 +12,7 @@ import { SessionInterestForm } from "@/components/session-interest-form"
 import { useToast } from "@/hooks/use-toast"
 import { Button } from "@/components/ui/button"
 import { History } from "lucide-react"
+import { getCurrentDateInTimeZone } from "@/lib/date-utils"
 
 interface MemberData {
   id: string
@@ -50,12 +51,21 @@ export default function DashboardPage() {
       if (session) {
         fetchMemberData(session.user.email!)
         fetchTodaySessions()
-        checkFeedbackTime()
       }
     }
 
     initDashboard()
   }, [supabase])
+
+  useEffect(() => {
+    setShowFeedbackForm(isAfter1PMIST())
+
+    const interval = setInterval(() => {
+      setShowFeedbackForm(isAfter1PMIST())
+    }, 60000)
+
+    return () => clearInterval(interval)
+  }, [])
 
   const fetchMemberData = async (email: string) => {
     try {
@@ -89,9 +99,7 @@ export default function DashboardPage() {
 
   const fetchTodaySessions = async () => {
     try {
-      // Format today's date as YYYY-MM-DD for database query
-      const today = new Date()
-      const formattedDate = today.toISOString().split("T")[0]
+      const formattedDate = getCurrentDateInTimeZone()
 
       const { data, error } = await supabase
         .from("sessions")
@@ -122,18 +130,6 @@ export default function DashboardPage() {
 
     // Check if time is after 1:30 PM (13:30)
     return adjustedHours > 13 || (adjustedHours === 13 && adjustedMinutes >= 30)
-  }
-
-  const checkFeedbackTime = () => {
-    // Only show feedback form if it's after 1 PM IST
-    setShowFeedbackForm(isAfter1PMIST())
-
-    // Set up an interval to check every minute
-    const interval = setInterval(() => {
-      setShowFeedbackForm(isAfter1PMIST())
-    }, 60000) // Check every minute
-
-    return () => clearInterval(interval)
   }
 
   if (loading) {
