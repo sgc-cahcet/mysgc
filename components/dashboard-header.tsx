@@ -46,17 +46,6 @@ export function DashboardHeader({ memberData }: DashboardHeaderProps) {
         throw error
       }
 
-      // Clear any cached data
-      if (typeof window !== 'undefined') {
-        // Clear service worker caches if they exist (PWA specific)
-        if ('caches' in window) {
-          const cacheNames = await caches.keys()
-          await Promise.all(
-            cacheNames.map(cacheName => caches.delete(cacheName))
-          )
-        }
-      }
-
       toast({
         title: "Signed out",
         description: "You have been signed out successfully",

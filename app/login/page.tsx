@@ -2,7 +2,7 @@
 
 import type React from "react"
 import { useEffect } from "react"
-import { useState } from "react"
+import { useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 import Image from "next/image"
@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Loader2 } from "lucide-react"
 import { ForgotPasswordDialog } from "@/components/auth/ForgotPasswordDialog"
+import { getAuthErrorMessage } from "@/lib/auth-errors"
 
 interface MemberRegistrationStatus {
   member_exists: boolean
@@ -36,11 +37,15 @@ export default function AuthPage() {
   const [loading, setLoading] = useState(false)
   const [checkingSession, setCheckingSession] = useState(true)
   const [isRedirecting, setIsRedirecting] = useState(false)
+  const submittingRef = useRef(false)
   const router = useRouter()
   const supabase = createClientComponentClient()
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (submittingRef.current) return
+
+    submittingRef.current = true
     setLoading(true)
     setLoginMessage({ text: "", type: "" })
 
@@ -79,7 +84,7 @@ export default function AuthPage() {
 
       if (error) {
         setLoginMessage({
-          text: `Login Failed: ${error.message}`,
+          text: `Login Failed: ${getAuthErrorMessage(error)}`,
           type: "error"
         })
       } else {
@@ -100,12 +105,16 @@ export default function AuthPage() {
         type: "error"
       })
     } finally {
+      submittingRef.current = false
       setLoading(false)
     }
   }
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (submittingRef.current) return
+
+    submittingRef.current = true
     setLoading(true)
     setSignupMessage({ text: "", type: "" })
 
@@ -161,7 +170,7 @@ export default function AuthPage() {
 
       if (error) {
         setSignupMessage({
-          text: `Signup Failed: ${error.message}`,
+          text: `Signup Failed: ${getAuthErrorMessage(error)}`,
           type: "error"
         })
       } else {
@@ -175,13 +184,7 @@ export default function AuthPage() {
           console.error("Failed to update member record:", updateError)
         }
 
-        // Since we're not requiring email verification, we can automatically sign in
-        const { error: signInError } = await supabase.auth.signInWithPassword({
-          email: normalizedEmail,
-          password: signupPassword,
-        })
-
-        if (signInError) {
+        if (!data.session) {
           setSignupMessage({
             text: "Your account was created, but you need to login manually.",
             type: "success"
@@ -205,6 +208,7 @@ export default function AuthPage() {
         type: "error"
       })
     } finally {
+      submittingRef.current = false
       setLoading(false)
     }
   }

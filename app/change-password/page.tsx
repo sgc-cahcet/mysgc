@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 import { ArrowLeft, Loader2 } from "lucide-react"
@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useToast } from "@/hooks/use-toast"
+import { getAuthErrorMessage } from "@/lib/auth-errors"
 
 interface MemberData {
   id: string
@@ -25,6 +26,7 @@ export default function ChangePasswordPage() {
   const [oldPassword, setOldPassword] = useState("")
   const [newPassword, setNewPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
+  const submittingRef = useRef(false)
   const router = useRouter()
   const { toast } = useToast()
   const supabase = createClientComponentClient()
@@ -65,6 +67,7 @@ export default function ChangePasswordPage() {
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault()
+    if (submittingRef.current) return
 
     if (newPassword.length < 6) {
       toast({
@@ -84,62 +87,70 @@ export default function ChangePasswordPage() {
       return
     }
 
+    submittingRef.current = true
     setSaving(true)
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
-    const email = user?.email || memberData?.email
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+      const email = user?.email || memberData?.email
 
-    if (!email) {
-      setSaving(false)
-      toast({
-        title: "Session expired",
-        description: "Please log in again before changing your password.",
-        variant: "destructive",
+      if (!email) {
+        toast({
+          title: "Session expired",
+          description: "Please log in again before changing your password.",
+          variant: "destructive",
+        })
+        router.push("/login")
+        return
+      }
+
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password: oldPassword,
       })
-      router.push("/login")
-      return
-    }
 
-    const { error: signInError } = await supabase.auth.signInWithPassword({
-      email,
-      password: oldPassword,
-    })
+      if (signInError) {
+        toast({
+          title: signInError.code === "over_request_rate_limit" ? "Too many attempts" : "Current password is incorrect",
+          description: getAuthErrorMessage(signInError, "Please enter your existing password and try again."),
+          variant: "destructive",
+        })
+        return
+      }
 
-    if (signInError) {
-      setSaving(false)
-      toast({
-        title: "Current password is incorrect",
-        description: "Please enter your existing password and try again.",
-        variant: "destructive",
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword,
       })
-      return
-    }
 
-    const { error } = await supabase.auth.updateUser({
-      password: newPassword,
-    })
+      if (error) {
+        toast({
+          title: "Update failed",
+          description: getAuthErrorMessage(error),
+          variant: "destructive",
+        })
+        return
+      }
 
-    setSaving(false)
-
-    if (error) {
+      toast({
+        title: "Password updated",
+        description: "Your password has been changed successfully.",
+      })
+      setOldPassword("")
+      setNewPassword("")
+      setConfirmPassword("")
+      router.replace("/dashboard")
+    } catch (error) {
       toast({
         title: "Update failed",
-        description: error.message,
+        description: "An error occurred. Please try again later.",
         variant: "destructive",
       })
-      return
+    } finally {
+      submittingRef.current = false
+      setSaving(false)
     }
-
-    toast({
-      title: "Password updated",
-      description: "Your password has been changed successfully.",
-    })
-    setOldPassword("")
-    setNewPassword("")
-    setConfirmPassword("")
-    router.replace("/dashboard")
   }
 
   if (loading) {
