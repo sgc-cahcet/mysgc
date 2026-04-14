@@ -911,7 +911,7 @@ export default function AdminPage() {
           </DialogContent>
         </Dialog>
         <div className="mt-12 text-center text-gray-500 text-xs hidden md:block">
-          <p>This Site was Developed and Maintained by SGC</p>
+          <p>This application was maintained and developed by Student Guidance Cell</p>
           <p>&copy; {new Date().getFullYear()} Students Guidance Cell - CAHCET. All Rights Reserved</p>
         </div>
       </main>

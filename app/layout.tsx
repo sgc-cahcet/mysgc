@@ -1,18 +1,24 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import './globals.css'
 import { SessionGuard } from '@/components/auth/SessionGuard'
 import { Toaster } from "@/components/ui/toaster"
+import { PwaServiceWorker } from '@/components/pwa-service-worker'
 
 export const metadata: Metadata = {
   title: 'MySGC - App for SGC Members',
   description: 'Created by Team SGC',
   manifest: '/manifest.json',
-  themeColor: '#f0f0f0',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
     title: 'MySGC',
   },
+}
+
+export const viewport: Viewport = {
+  themeColor: '#000000',
+  width: 'device-width',
+  initialScale: 1,
 }
 
 export default function RootLayout({
@@ -29,6 +35,7 @@ export default function RootLayout({
         <SessionGuard>
           {children}
         </SessionGuard>
+        <PwaServiceWorker />
         <Toaster />
       </body>
     </html>

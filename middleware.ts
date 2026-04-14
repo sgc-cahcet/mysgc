@@ -22,7 +22,11 @@ export async function middleware(req: NextRequest) {
 
     // If user is NOT logged in and trying to access dashboard, redirect to login
     if (!session) {
-        if (url.pathname.startsWith('/dashboard') || url.pathname.startsWith('/admin')) {
+        if (
+            url.pathname.startsWith('/dashboard') ||
+            url.pathname.startsWith('/admin') ||
+            url.pathname.startsWith('/change-password')
+        ) {
             url.pathname = '/login'
             return NextResponse.redirect(url)
         }
@@ -32,5 +36,5 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-    matcher: ['/', '/login', '/dashboard/:path*', '/admin/:path*'],
+    matcher: ['/', '/login', '/dashboard/:path*', '/admin/:path*', '/change-password'],
 }

@@ -332,7 +332,7 @@ export default function SessionHistoryPage() {
         </div>
 
         <div className="mt-12 text-center text-gray-500 text-xs">
-          <p>This Site was Developed and Maintained by SGC</p>
+          <p>This application was maintained and developed by Student Guidance Cell</p>
           <p>&copy; {new Date().getFullYear()} Students Guidance Cell - CAHCET. All Rights Reserved</p>
         </div>
       </main>
