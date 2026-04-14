@@ -1,3 +1,6 @@
+import { dirname } from 'node:path'
+import { fileURLToPath } from 'node:url'
+
 let userConfig = undefined
 try {
   userConfig = await import('./v0-user-next.config')
@@ -5,8 +8,11 @@ try {
   // ignore error
 }
 
+const __dirname = dirname(fileURLToPath(import.meta.url))
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  outputFileTracingRoot: __dirname,
   eslint: {
     ignoreDuringBuilds: true,
   },
@@ -15,11 +21,6 @@ const nextConfig = {
   },
   images: {
     unoptimized: true,
-  },
-  experimental: {
-    webpackBuildWorker: true,
-    parallelServerBuildTraces: true,
-    parallelServerCompiles: true,
   },
 }
 
