@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useRef, useState } from "react"
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 import {
     Dialog,
@@ -30,6 +30,7 @@ import {
     InputOTPSlot,
 } from "@/components/ui/input-otp"
 import { useIsMobile } from "@/hooks/use-mobile"
+import { getAuthErrorMessage } from "@/lib/auth-errors"
 
 type Step = "request" | "verify" | "success"
 
@@ -243,6 +244,7 @@ export function ForgotPasswordDialog({ onOpen }: { onOpen?: () => void }) {
     const [confirmPassword, setConfirmPassword] = useState("")
     const [loading, setLoading] = useState(false)
     const [open, setOpen] = useState(false)
+    const submittingRef = useRef(false)
 
     const isMobile = useIsMobile()
     const supabase = createClientComponentClient()
@@ -270,6 +272,9 @@ export function ForgotPasswordDialog({ onOpen }: { onOpen?: () => void }) {
     const handleSendOTP = async (e: React.FormEvent) => {
         e.preventDefault()
         e.stopPropagation()
+        if (submittingRef.current) return
+
+        submittingRef.current = true
         setLoading(true)
 
         try {
@@ -296,7 +301,7 @@ export function ForgotPasswordDialog({ onOpen }: { onOpen?: () => void }) {
             if (error) {
                 toast({
                     title: "Error",
-                    description: error.message,
+                    description: getAuthErrorMessage(error),
                     variant: "destructive",
                 })
             } else {
@@ -313,6 +318,7 @@ export function ForgotPasswordDialog({ onOpen }: { onOpen?: () => void }) {
                 variant: "destructive",
             })
         } finally {
+            submittingRef.current = false
             setLoading(false)
         }
     }
@@ -339,6 +345,9 @@ export function ForgotPasswordDialog({ onOpen }: { onOpen?: () => void }) {
             return
         }
 
+        if (submittingRef.current) return
+
+        submittingRef.current = true
         setLoading(true)
 
         try {
@@ -351,7 +360,7 @@ export function ForgotPasswordDialog({ onOpen }: { onOpen?: () => void }) {
             if (verifyError) {
                 toast({
                     title: "Verification Failed",
-                    description: verifyError.message,
+                    description: getAuthErrorMessage(verifyError),
                     variant: "destructive",
                 })
                 setLoading(false)
@@ -365,7 +374,7 @@ export function ForgotPasswordDialog({ onOpen }: { onOpen?: () => void }) {
             if (updateError) {
                 toast({
                     title: "Update Failed",
-                    description: updateError.message,
+                    description: getAuthErrorMessage(updateError),
                     variant: "destructive",
                 })
             } else {
@@ -387,6 +396,7 @@ export function ForgotPasswordDialog({ onOpen }: { onOpen?: () => void }) {
                 variant: "destructive",
             })
         } finally {
+            submittingRef.current = false
             setLoading(false)
         }
     }
