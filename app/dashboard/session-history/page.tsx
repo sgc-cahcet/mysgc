@@ -36,6 +36,8 @@ interface Session {
   type: string
   handler: string
   handler_id: number
+  co_handler: string | null
+  co_handler_id: number | null
   description: string | null
   is_approved: boolean
   created_at: string
@@ -109,11 +111,11 @@ export default function SessionHistoryPage() {
 
   const fetchSessions = async (memberId: number) => {
     try {
-      // Fetch all sessions where this member is the handler
+      // Fetch all sessions where this member is either handler
       const { data: sessionsData, error: sessionsError } = await supabase
         .from("sessions")
         .select("*")
-        .eq("handler_id", memberId)
+        .or(`handler_id.eq.${memberId},co_handler_id.eq.${memberId}`)
         .order("date", { ascending: false })
 
       if (sessionsError) {
@@ -189,6 +191,10 @@ export default function SessionHistoryPage() {
     )
   }
 
+  const getHandlersLabel = (session: Session) => {
+    return session.co_handler ? `${session.handler} & ${session.co_handler}` : session.handler
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen bg-[#f0f0f0] flex items-center justify-center">
@@ -243,6 +249,9 @@ export default function SessionHistoryPage() {
                     </Badge>
                     <Badge variant="outline" className="border-2 border-black">
                       {session.type}
+                    </Badge>
+                    <Badge variant="outline" className="border-2 border-black">
+                      {getHandlersLabel(session)}
                     </Badge>
                     {session.feedback && session.feedback.length > 0 && (
                       <Badge variant="outline" className="flex items-center gap-1 border-2 border-green-600 text-green-700 bg-green-50">

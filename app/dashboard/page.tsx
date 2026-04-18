@@ -30,6 +30,8 @@ interface Session {
   type: string
   handler: string
   handler_id: number
+  co_handler: string | null
+  co_handler_id: number | null
   description: string
 }
 

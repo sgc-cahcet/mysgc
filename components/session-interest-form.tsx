@@ -17,9 +17,17 @@ interface SessionInterestFormProps {
   memberId: string | undefined
 }
 
+interface MemberOption {
+  id: number
+  name: string
+}
+
 export function SessionInterestForm({ memberId }: SessionInterestFormProps) {
   const [topic, setTopic] = useState("")
   const [type, setType] = useState("")
+  const [handlerCount, setHandlerCount] = useState("1")
+  const [coHandlerId, setCoHandlerId] = useState("")
+  const [members, setMembers] = useState<MemberOption[]>([])
   const [preferredDate, setPreferredDate] = useState("")
   const [description, setDescription] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -33,7 +41,20 @@ export function SessionInterestForm({ memberId }: SessionInterestFormProps) {
 
   useEffect(() => {
     fetchBookedDates()
+    fetchMembers()
   }, [])
+
+  const fetchMembers = async () => {
+    try {
+      const { data, error } = await supabase.rpc("list_session_handler_members")
+
+      if (error) throw error
+
+      setMembers(data || [])
+    } catch (error) {
+      console.error("Error fetching members:", error)
+    }
+  }
 
   const fetchBookedDates = async () => {
     setIsLoadingDates(true)
@@ -157,6 +178,22 @@ export function SessionInterestForm({ memberId }: SessionInterestFormProps) {
       return
     }
 
+    if (handlerCount === "2" && !coHandlerId) {
+      setStatusMessage({
+        type: "error",
+        text: "Please select the second session handler.",
+      })
+      return
+    }
+
+    if (handlerCount === "2" && coHandlerId === String(memberId)) {
+      setStatusMessage({
+        type: "error",
+        text: "Please select a different member as the second handler.",
+      })
+      return
+    }
+
     setIsSubmitting(true)
 
     try {
@@ -170,9 +207,16 @@ export function SessionInterestForm({ memberId }: SessionInterestFormProps) {
         throw memberError
       }
 
+      const coHandler = handlerCount === "2"
+        ? members.find((member) => String(member.id) === coHandlerId)
+        : null
+
       const { error: insertError } = await supabase.from("session_interests").insert({
         member_id: memberId,
         member_name: memberData.name,
+        handler_count: Number(handlerCount),
+        co_handler_id: coHandler ? coHandler.id : null,
+        co_handler_name: coHandler ? coHandler.name : null,
         topic,
         type,
         preferred_date: preferredDate,
@@ -190,6 +234,8 @@ export function SessionInterestForm({ memberId }: SessionInterestFormProps) {
 
       setTopic("")
       setType("")
+      setHandlerCount("1")
+      setCoHandlerId("")
       setPreferredDate("")
       setDescription("")
       
@@ -268,6 +314,49 @@ export function SessionInterestForm({ memberId }: SessionInterestFormProps) {
               </SelectContent>
             </Select>
           </div>
+
+          <div>
+            <label htmlFor="handlerCount" className="block text-sm font-medium mb-1">
+              Number of Session Handlers <span className="text-red-500">*</span>
+            </label>
+            <Select
+              value={handlerCount}
+              onValueChange={(value) => {
+                setHandlerCount(value)
+                if (value === "1") setCoHandlerId("")
+              }}
+            >
+              <SelectTrigger id="handlerCount" className="border-2 border-black">
+                <SelectValue placeholder="Select handler count" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="1">1</SelectItem>
+                <SelectItem value="2">2</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {handlerCount === "2" && (
+            <div>
+              <label htmlFor="coHandler" className="block text-sm font-medium mb-1">
+                Second Handler <span className="text-red-500">*</span>
+              </label>
+              <Select value={coHandlerId} onValueChange={setCoHandlerId}>
+                <SelectTrigger id="coHandler" className="border-2 border-black">
+                  <SelectValue placeholder="Select second handler" />
+                </SelectTrigger>
+                <SelectContent>
+                  {members
+                    .filter((member) => String(member.id) !== String(memberId))
+                    .map((member) => (
+                      <SelectItem key={member.id} value={String(member.id)}>
+                        {member.name}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
           <div>
             <label className="block text-sm font-medium mb-2">

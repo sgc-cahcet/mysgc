@@ -57,12 +57,7 @@ export function DashboardHeader({ memberData }: DashboardHeaderProps) {
       // Use router.replace instead of router.push to prevent back navigation
       router.replace("/login")
       
-      // Force a hard refresh after redirect to clear any remaining state
-      setTimeout(() => {
-        if (typeof window !== 'undefined') {
-          window.location.href = "/login"
-        }
-      }, 100)
+      router.refresh()
       
     } catch (error) {
       console.error("Sign out error:", error)

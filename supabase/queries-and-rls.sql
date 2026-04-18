@@ -61,6 +61,21 @@ as $$
   limit 1
 $$;
 
+create or replace function public.list_session_handler_members()
+returns table (
+  id integer,
+  name text
+)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select m.id, m.name
+  from public.members as m
+  order by m.name asc
+$$;
+
 create or replace function public.get_member_attendance_summary(p_member_id integer)
 returns table (
   month_key text,
@@ -119,6 +134,8 @@ returns table (
   session_date date,
   handler text,
   handler_id integer,
+  co_handler text,
+  co_handler_id integer,
   feedback_count bigint,
   average_rating numeric
 )
@@ -133,19 +150,32 @@ as $$
     s.date as session_date,
     s.handler,
     s.handler_id,
+    s.co_handler,
+    s.co_handler_id,
     count(sf.id) as feedback_count,
     round(avg(sf.rating)::numeric, 1) as average_rating
   from public.sessions as s
   left join public.session_feedback as sf
     on sf.session_id = s.id
   where s.is_approved = true
-  group by s.id, s.title, s.date, s.handler, s.handler_id
+  group by s.id, s.title, s.date, s.handler, s.handler_id, s.co_handler, s.co_handler_id
   order by s.date desc, s.title asc
 $$;
+
+alter table public.session_interests
+  add column if not exists handler_count integer not null default 1,
+  add column if not exists co_handler_id integer,
+  add column if not exists co_handler_name text;
+
+alter table public.sessions
+  add column if not exists handler_count integer not null default 1,
+  add column if not exists co_handler_id integer,
+  add column if not exists co_handler text;
 
 create index if not exists attendance_member_date_idx on public.attendance (member_id, date);
 create index if not exists attendance_date_idx on public.attendance (date);
 create index if not exists sessions_handler_date_idx on public.sessions (handler_id, date desc);
+create index if not exists sessions_co_handler_date_idx on public.sessions (co_handler_id, date desc);
 create index if not exists sessions_lookup_idx on public.sessions (title, handler, date);
 create index if not exists session_feedback_session_created_idx on public.session_feedback (session_id, created_at desc);
 create index if not exists session_feedback_member_date_idx on public.session_feedback (member_id, date desc);
@@ -156,6 +186,7 @@ create index if not exists feedback_status_created_idx on public.feedback (statu
 
 grant execute on function public.check_member_registration_status(text) to anon, authenticated;
 grant execute on function public.get_member_attendance_summary(integer) to authenticated;
+grant execute on function public.list_session_handler_members() to authenticated;
 
 alter table public.members enable row level security;
 alter table public.attendance enable row level security;
@@ -289,7 +320,10 @@ using (
     select 1
     from public.sessions as s
     where s.id = session_feedback.session_id
-      and s.handler_id = public.current_member_id()
+      and (
+        s.handler_id = public.current_member_id()
+        or s.co_handler_id = public.current_member_id()
+      )
   )
 );
 

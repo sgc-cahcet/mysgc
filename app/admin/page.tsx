@@ -35,6 +35,7 @@ interface SessionRow {
   id: string
   title: string
   handler: string
+  co_handler: string | null
   date: string
 }
 
@@ -68,6 +69,8 @@ export default function AdminPage() {
 
   // Manual session form states
   const [manualMemberId, setManualMemberId] = useState("")
+  const [manualHandlerCount, setManualHandlerCount] = useState("1")
+  const [manualCoHandlerId, setManualCoHandlerId] = useState("")
   const [manualTopic, setManualTopic] = useState("")
   const [manualType, setManualType] = useState("")
   const [manualDate, setManualDate] = useState("")
@@ -76,6 +79,10 @@ export default function AdminPage() {
 
   const router = useRouter()
   const supabase = createClientComponentClient()
+
+  const getHandlersLabel = (primaryName?: string | null, coHandlerName?: string | null) => {
+    return coHandlerName ? `${primaryName} & ${coHandlerName}` : primaryName || "Unassigned"
+  }
 
   useEffect(() => {
     const checkSession = async () => {
@@ -187,7 +194,7 @@ export default function AdminPage() {
     try {
       const { data: sessionsData, error: sessionsError } = await supabase
         .from("sessions")
-        .select("id, title, handler, date")
+        .select("id, title, handler, co_handler, date")
         .eq("is_approved", true)
 
       if (sessionsError) throw sessionsError
@@ -341,7 +348,10 @@ export default function AdminPage() {
         time: "01:00 PM",
         type: interest.type,
         handler: interest.member_name,
-        handler_id: interest.member_id,
+        handler_id: Number(interest.member_id),
+        handler_count: interest.handler_count || 1,
+        co_handler: interest.co_handler_name || null,
+        co_handler_id: interest.co_handler_id ? Number(interest.co_handler_id) : null,
         description: interest.description,
         is_approved: true,
       })
@@ -434,6 +444,7 @@ export default function AdminPage() {
         .select("id")
         .eq("title", sessionInterest.topic)
         .eq("handler", sessionInterest.member_name)
+        .eq("date", sessionInterest.preferred_date)
         .single()
 
       if (sessionData) {
@@ -485,11 +496,31 @@ export default function AdminPage() {
       return
     }
 
+    if (manualHandlerCount === "2" && !manualCoHandlerId) {
+      setStatusMessage({
+        type: "error",
+        text: "Please select the second session handler.",
+      })
+      return
+    }
+
+    if (manualHandlerCount === "2" && manualCoHandlerId === manualMemberId) {
+      setStatusMessage({
+        type: "error",
+        text: "Please select two different handlers.",
+      })
+      return
+    }
+
     setIsSubmittingManual(true)
 
     try {
       const selectedMember = members.find(m => m.id === manualMemberId)
       if (!selectedMember) throw new Error("Member not found")
+      const selectedCoHandler = manualHandlerCount === "2"
+        ? members.find(m => m.id === manualCoHandlerId)
+        : null
+      if (manualHandlerCount === "2" && !selectedCoHandler) throw new Error("Second handler not found")
 
       // Check for conflicts
       const conflict = await checkDateConflict(manualDate)
@@ -508,6 +539,9 @@ export default function AdminPage() {
         .insert({
           member_id: Number(manualMemberId),
           member_name: selectedMember.name,
+          handler_count: Number(manualHandlerCount),
+          co_handler_id: selectedCoHandler ? Number(selectedCoHandler.id) : null,
+          co_handler_name: selectedCoHandler ? selectedCoHandler.name : null,
           topic: manualTopic,
           type: manualType,
           preferred_date: manualDate,
@@ -525,6 +559,9 @@ export default function AdminPage() {
         type: manualType,
         handler: selectedMember.name,
         handler_id: Number(manualMemberId),
+        handler_count: Number(manualHandlerCount),
+        co_handler: selectedCoHandler ? selectedCoHandler.name : null,
+        co_handler_id: selectedCoHandler ? Number(selectedCoHandler.id) : null,
         description: manualDescription,
         is_approved: true,
       })
@@ -538,6 +575,8 @@ export default function AdminPage() {
 
       // Reset form
       setManualMemberId("")
+      setManualHandlerCount("1")
+      setManualCoHandlerId("")
       setManualTopic("")
       setManualType("")
       setManualDate("")
@@ -606,7 +645,9 @@ export default function AdminPage() {
                             <div className="space-y-3">
                               <div>
                                 <h3 className="font-bold text-lg">{interest.topic}</h3>
-                                <p className="text-sm text-gray-600">By {interest.member_name}</p>
+                                <p className="text-sm text-gray-600">
+                                  By {getHandlersLabel(interest.member_name, interest.co_handler_name)}
+                                </p>
                               </div>
                               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
                                 <div>
@@ -800,6 +841,7 @@ export default function AdminPage() {
                 <Select value={manualMemberId} onValueChange={(value) => {
                   console.log("Selected member ID:", value)
                   setManualMemberId(value)
+                  if (value === manualCoHandlerId) setManualCoHandlerId("")
                 }}>
                   <SelectTrigger id="manualMember" className="border-2 border-black">
                     <SelectValue placeholder="Select member" />
@@ -813,6 +855,49 @@ export default function AdminPage() {
                   </SelectContent>
                 </Select>
               </div>
+
+              <div>
+                <label htmlFor="manualHandlerCount" className="block text-sm font-medium mb-1">
+                  Number of Session Handlers <span className="text-red-500">*</span>
+                </label>
+                <Select
+                  value={manualHandlerCount}
+                  onValueChange={(value) => {
+                    setManualHandlerCount(value)
+                    if (value === "1") setManualCoHandlerId("")
+                  }}
+                >
+                  <SelectTrigger id="manualHandlerCount" className="border-2 border-black">
+                    <SelectValue placeholder="Select handler count" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="1">1</SelectItem>
+                    <SelectItem value="2">2</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {manualHandlerCount === "2" && (
+                <div>
+                  <label htmlFor="manualCoHandler" className="block text-sm font-medium mb-1">
+                    Second Handler <span className="text-red-500">*</span>
+                  </label>
+                  <Select value={manualCoHandlerId} onValueChange={setManualCoHandlerId}>
+                    <SelectTrigger id="manualCoHandler" className="border-2 border-black">
+                      <SelectValue placeholder="Select second handler" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {members
+                        .filter((member) => member.id !== manualMemberId)
+                        .map((member) => (
+                          <SelectItem key={member.id} value={String(member.id)}>
+                            {member.name}
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
 
               <div>
                 <label htmlFor="manualTopic" className="block text-sm font-medium mb-1">
@@ -883,6 +968,8 @@ export default function AdminPage() {
                   onClick={() => {
                     setAddSessionDialogOpen(false)
                     setManualMemberId("")
+                    setManualHandlerCount("1")
+                    setManualCoHandlerId("")
                     setManualTopic("")
                     setManualType("")
                     setManualDate("")
