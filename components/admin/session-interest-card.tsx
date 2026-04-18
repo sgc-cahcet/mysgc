@@ -43,6 +43,10 @@ export function SessionInterestCard({
     setDeleteDialogOpen(false)
   }
 
+  const handlersLabel = interest.co_handler_name
+    ? `${interest.member_name} & ${interest.co_handler_name}`
+    : interest.member_name
+
   return (
     <div className="border-2 border-black rounded-lg p-3 sm:p-4 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-white relative">
 
@@ -54,7 +58,7 @@ export function SessionInterestCard({
             {interest.topic}
           </h3>
           <p className="text-xs sm:text-sm text-gray-600 mt-1">
-            By: {interest.member_name}
+            By: {handlersLabel}
           </p>
         </div>
         <span

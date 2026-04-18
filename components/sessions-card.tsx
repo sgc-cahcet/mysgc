@@ -14,6 +14,7 @@ interface Session {
   time: string
   type: string
   handler: string
+  co_handler: string | null
   description: string
 }
 
@@ -112,6 +113,10 @@ export function SessionsCard() {
     }
   }
 
+  const getHandlersLabel = (session: Session) => {
+    return session.co_handler ? `${session.handler} & ${session.co_handler}` : session.handler
+  }
+
   return (
     <Card className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
       <CardHeader className="pb-2">
@@ -140,7 +145,7 @@ export function SessionsCard() {
                     </div>
                     <div className="mt-2 text-sm text-gray-600">
                       <div>Time: {formatTime(session.time)}</div>
-                      <div>Handler: {session.handler}</div>
+                      <div>Handler: {getHandlersLabel(session)}</div>
                     </div>
                     {session.description && <p className="mt-2 text-sm">{session.description}</p>}
                   </div>
@@ -170,7 +175,7 @@ export function SessionsCard() {
                     </div>
                     <div className="mt-2 text-sm text-gray-600">
                       <div>Time: {formatTime(session.time)}</div>
-                      <div>Handler: {session.handler}</div>
+                      <div>Handler: {getHandlersLabel(session)}</div>
                     </div>
                     {session.description && <p className="mt-2 text-sm">{session.description}</p>}
                   </div>

@@ -17,6 +17,8 @@ interface Session {
   type: string
   handler: string
   handler_id: number
+  co_handler: string | null
+  co_handler_id: number | null
   description: string
 }
 
@@ -95,7 +97,7 @@ export function FeedbackForm({ memberId, todaySessions }: FeedbackFormProps) {
     if (memberId && todaySessions.length > 0) {
       const memberIdNum = parseInt(memberId)
       const sessionsHandledByMember = todaySessions.filter(
-        session => session.handler_id === memberIdNum
+        session => session.handler_id === memberIdNum || session.co_handler_id === memberIdNum
       )
       
       if (sessionsHandledByMember.length > 0) {
@@ -246,7 +248,8 @@ export function FeedbackForm({ memberId, todaySessions }: FeedbackFormProps) {
   const availableSessions = todaySessions.filter(
     session => 
       !alreadySubmittedSessions.includes(session.id) && 
-      session.handler_id !== parseInt(memberId || "0")
+      session.handler_id !== parseInt(memberId || "0") &&
+      session.co_handler_id !== parseInt(memberId || "0")
   )
 
   // If member is handling all of today's sessions
@@ -437,9 +440,13 @@ export function FeedbackForm({ memberId, todaySessions }: FeedbackFormProps) {
                 </SelectTrigger>
                 <SelectContent>
                   {todaySessions.map((session) => {
-                    const isHandled = session.handler_id === parseInt(memberId || "0")
+                    const memberIdNum = parseInt(memberId || "0")
+                    const isHandled = session.handler_id === memberIdNum || session.co_handler_id === memberIdNum
                     const isSubmitted = alreadySubmittedSessions.includes(session.id)
                     const isDisabled = isHandled || isSubmitted
+                    const handlersLabel = session.co_handler
+                      ? `${session.handler} & ${session.co_handler}`
+                      : session.handler
                     
                     return (
                       <SelectItem
@@ -447,7 +454,7 @@ export function FeedbackForm({ memberId, todaySessions }: FeedbackFormProps) {
                         value={session.id}
                         disabled={isDisabled}
                       >
-                        {session.title} - {session.handler} ({session.time})
+                        {session.title} - {handlersLabel} ({session.time})
                         {isHandled && " (You're handling this)"}
                         {isSubmitted && " (Feedback submitted)"}
                       </SelectItem>

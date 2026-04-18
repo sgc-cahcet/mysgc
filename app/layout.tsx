@@ -7,6 +7,20 @@ import { RemoveServiceWorker } from '@/components/remove-service-worker'
 export const metadata: Metadata = {
   title: 'MySGC - App for SGC Members',
   description: 'Created by Team SGC',
+  manifest: '/manifest.webmanifest',
+  icons: {
+    icon: '/logo.png',
+    apple: '/logo.png',
+  },
+  appleWebApp: {
+    capable: true,
+    title: 'MySGC',
+    statusBarStyle: 'default',
+  },
+  applicationName: 'MySGC',
+  other: {
+    'mobile-web-app-capable': 'yes',
+  },
 }
 
 export const viewport: Viewport = {

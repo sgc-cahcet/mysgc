@@ -214,9 +214,22 @@ export default function AuthPage() {
   }
 
   useEffect(() => {
-    // Only set checkingSession to false as middleware handles the primary auth redirection
-    setCheckingSession(false)
-  }, [])
+    const checkSession = async () => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
+
+      if (session) {
+        setIsRedirecting(true)
+        router.replace("/dashboard")
+        return
+      }
+
+      setCheckingSession(false)
+    }
+
+    checkSession()
+  }, [router, supabase])
 
   // Show loader while checking session OR while redirecting
   if (checkingSession || isRedirecting) {
