@@ -797,66 +797,71 @@ export default function AdminPage() {
                     })}
 
                     {totalApprovedPages > 1 && (
-                      <Pagination className="pt-2">
-                        <PaginationContent>
-                          <PaginationItem>
-                            <PaginationPrevious
-                              href="#"
-                              onClick={(e) => {
-                                e.preventDefault()
-                                if (currentApprovedPage > 1) handleApprovedPageChange(currentApprovedPage - 1)
-                              }}
-                              className={currentApprovedPage <= 1 ? "pointer-events-none opacity-50" : ""}
-                            />
-                          </PaginationItem>
+                      <div className="overflow-x-auto -mx-1 px-1">
+                        <Pagination className="pt-2 w-max sm:w-full mx-auto">
+                          <PaginationContent className="flex-nowrap gap-0 sm:gap-1">
+                            <PaginationItem>
+                              <PaginationPrevious
+                                href="#"
+                                onClick={(e) => {
+                                  e.preventDefault()
+                                  if (currentApprovedPage > 1) handleApprovedPageChange(currentApprovedPage - 1)
+                                }}
+                                className={`${currentApprovedPage <= 1 ? "pointer-events-none opacity-50" : ""} [&>span]:hidden sm:[&>span]:inline px-1.5 sm:px-2.5`}
+                              />
+                            </PaginationItem>
 
-                          {Array.from({ length: totalApprovedPages }, (_, i) => i + 1)
-                            .filter((page) => {
-                              if (totalApprovedPages <= 7) return true
-                              if (page === 1 || page === totalApprovedPages) return true
-                              if (Math.abs(page - currentApprovedPage) <= 1) return true
-                              return false
-                            })
-                            .map((page, index, arr) => {
-                              const showEllipsisBefore = index > 0 && page - arr[index - 1] > 1
+                            {Array.from({ length: totalApprovedPages }, (_, i) => i + 1)
+                              .filter((page) => {
+                                if (totalApprovedPages <= 5) return true
+                                if (page === 1 || page === totalApprovedPages) return true
+                                if (Math.abs(page - currentApprovedPage) <= 1) return true
+                                return false
+                              })
+                              .map((page, index, arr) => {
+                                const showEllipsisBefore = index > 0 && page - arr[index - 1] > 1
 
-                              return (
-                                <span key={page} className="contents">
-                                  {showEllipsisBefore && (
-                                    <PaginationItem>
-                                      <PaginationEllipsis />
-                                    </PaginationItem>
-                                  )}
-                                  <PaginationItem>
-                                    <PaginationLink
-                                      href="#"
-                                      isActive={page === currentApprovedPage}
-                                      onClick={(e) => {
-                                        e.preventDefault()
-                                        handleApprovedPageChange(page)
-                                      }}
+                                return (
+                                  <span key={page} className="contents">
+                                    {showEllipsisBefore && (
+                                      <PaginationItem className="hidden sm:list-item">
+                                        <PaginationEllipsis />
+                                      </PaginationItem>
+                                    )}
+                                    <PaginationItem
+                                      className={page !== currentApprovedPage && Math.abs(page - currentApprovedPage) > 1 ? "hidden sm:list-item" : ""}
                                     >
-                                      {page}
-                                    </PaginationLink>
-                                  </PaginationItem>
-                                </span>
-                              )
-                            })}
+                                      <PaginationLink
+                                        href="#"
+                                        isActive={page === currentApprovedPage}
+                                        onClick={(e) => {
+                                          e.preventDefault()
+                                          handleApprovedPageChange(page)
+                                        }}
+                                        className="h-8 w-8 sm:h-9 sm:w-9"
+                                      >
+                                        {page}
+                                      </PaginationLink>
+                                    </PaginationItem>
+                                  </span>
+                                )
+                              })}
 
-                          <PaginationItem>
-                            <PaginationNext
-                              href="#"
-                              onClick={(e) => {
-                                e.preventDefault()
-                                if (currentApprovedPage < totalApprovedPages) {
-                                  handleApprovedPageChange(currentApprovedPage + 1)
-                                }
-                              }}
-                              className={currentApprovedPage >= totalApprovedPages ? "pointer-events-none opacity-50" : ""}
-                            />
-                          </PaginationItem>
-                        </PaginationContent>
-                      </Pagination>
+                            <PaginationItem>
+                              <PaginationNext
+                                href="#"
+                                onClick={(e) => {
+                                  e.preventDefault()
+                                  if (currentApprovedPage < totalApprovedPages) {
+                                    handleApprovedPageChange(currentApprovedPage + 1)
+                                  }
+                                }}
+                                className={`${currentApprovedPage >= totalApprovedPages ? "pointer-events-none opacity-50" : ""} [&>span]:hidden sm:[&>span]:inline px-1.5 sm:px-2.5`}
+                              />
+                            </PaginationItem>
+                          </PaginationContent>
+                        </Pagination>
+                      </div>
                     )}
                   </div>
                 ) : (
