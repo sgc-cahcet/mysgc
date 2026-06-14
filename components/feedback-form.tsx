@@ -41,7 +41,10 @@ export function FeedbackForm({ memberId, todaySessions }: FeedbackFormProps) {
   const [isFeedbackTimeValid, setIsFeedbackTimeValid] = useState(false)
   const [currentTimeStatus, setCurrentTimeStatus] = useState<"before" | "during" | "after">("before")
   
-  const supabase = createBrowserClient()
+  const supabase = createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  )
 
   // Get current IST time
   const getISTTime = () => {

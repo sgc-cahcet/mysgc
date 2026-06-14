@@ -25,7 +25,10 @@ export function AttendanceCard({ memberId }: AttendanceCardProps) {
   const [selectedMonth, setSelectedMonth] = useState<string>("")
   const [monthlyData, setMonthlyData] = useState<MonthlyAttendanceSummary[]>([])
   const [loading, setLoading] = useState(true)
-  const supabase = createBrowserClient()
+  const supabase = createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  )
 
   useEffect(() => {
     if (memberId) {

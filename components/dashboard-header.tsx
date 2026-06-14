@@ -30,7 +30,10 @@ export function DashboardHeader({ memberData }: DashboardHeaderProps) {
   const [isSigningOut, setIsSigningOut] = useState(false)
   const router = useRouter()
   const { toast } = useToast()
-  const supabase = createBrowserClient()
+  const supabase = createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  )
   
   // Check if user has admin access
   const isAdmin = memberData?.role === "Administrator" || memberData?.role === "Session Incharge" || memberData?.role === "Vice President" || memberData?.role === "President"

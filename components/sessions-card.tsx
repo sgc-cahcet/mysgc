@@ -24,7 +24,10 @@ export function SessionsCard() {
   const [loading, setLoading] = useState(true)
   const [, setCurrentDate] = useState("")
   const { toast } = useToast()
-  const supabase = createBrowserClient()
+  const supabase = createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  )
 
   useEffect(() => {
     const syncSessions = () => {

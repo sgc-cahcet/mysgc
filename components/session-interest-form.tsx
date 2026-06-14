@@ -37,7 +37,10 @@ export function SessionInterestForm({ memberId }: SessionInterestFormProps) {
   const [currentMonth, setCurrentMonth] = useState(new Date())
   const [showCalendar, setShowCalendar] = useState(false)
   const { toast } = useToast()
-  const supabase = createBrowserClient()
+  const supabase = createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  )
 
   useEffect(() => {
     fetchBookedDates()

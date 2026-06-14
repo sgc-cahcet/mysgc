@@ -7,7 +7,10 @@ import { createBrowserClient } from "@supabase/auth-helpers-nextjs"
 export function SessionGuard({ children }: { children: React.ReactNode }) {
     const router = useRouter()
     const pathname = usePathname()
-    const supabase = createBrowserClient()
+    const supabase = createBrowserClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    )
 
     useEffect(() => {
         // Set up a listener for auth state changes

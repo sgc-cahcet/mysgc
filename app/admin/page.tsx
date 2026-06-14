@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useMemo } from "react"
 import { createBrowserClient } from "@supabase/auth-helpers-nextjs"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -15,7 +15,7 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { CheckCircle, AlertCircle, Plus, Calendar } from "lucide-react"
+import { CheckCircle, AlertCircle, Plus, Calendar, Search, X } from "lucide-react"
 import {
   Pagination,
   PaginationContent,
@@ -78,10 +78,27 @@ export default function AdminPage() {
 
   const APPROVED_PAGE_SIZE = 10
   const [currentApprovedPage, setCurrentApprovedPage] = useState(1)
+  const [approvedSearchQuery, setApprovedSearchQuery] = useState("")
 
-  const approvedSessions = sessionInterests.filter((interest) => interest.is_approved)
-  const totalApprovedPages = Math.max(1, Math.ceil(approvedSessions.length / APPROVED_PAGE_SIZE))
-  const paginatedApprovedSessions = approvedSessions.slice(
+  const approvedSessions = useMemo(
+    () => sessionInterests.filter((interest) => interest.is_approved),
+    [sessionInterests],
+  )
+
+  const filteredApprovedSessions = useMemo(() => {
+    if (!approvedSearchQuery.trim()) return approvedSessions
+    const query = approvedSearchQuery.toLowerCase().trim()
+    return approvedSessions.filter(
+      (s) =>
+        s.topic.toLowerCase().includes(query) ||
+        s.member_name.toLowerCase().includes(query) ||
+        (s.co_handler_name && s.co_handler_name.toLowerCase().includes(query)) ||
+        s.preferred_date.includes(query),
+    )
+  }, [approvedSessions, approvedSearchQuery])
+
+  const totalApprovedPages = Math.max(1, Math.ceil(filteredApprovedSessions.length / APPROVED_PAGE_SIZE))
+  const paginatedApprovedSessions = filteredApprovedSessions.slice(
     (currentApprovedPage - 1) * APPROVED_PAGE_SIZE,
     currentApprovedPage * APPROVED_PAGE_SIZE,
   )
@@ -96,7 +113,11 @@ export default function AdminPage() {
     if (currentApprovedPage > totalApprovedPages) {
       setCurrentApprovedPage(totalApprovedPages)
     }
-  }, [approvedSessions.length])
+  }, [filteredApprovedSessions.length])
+
+  useEffect(() => {
+    setCurrentApprovedPage(1)
+  }, [approvedSearchQuery])
 
   // Manual session form states
   const [manualMemberId, setManualMemberId] = useState("")
@@ -109,7 +130,10 @@ export default function AdminPage() {
   const [isSubmittingManual, setIsSubmittingManual] = useState(false)
 
   const router = useRouter()
-  const supabase = createBrowserClient()
+  const supabase = createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  )
 
   const getHandlersLabel = (primaryName?: string | null, coHandlerName?: string | null) => {
     return coHandlerName ? `${primaryName} & ${coHandlerName}` : primaryName || "Unassigned"
@@ -734,7 +758,25 @@ export default function AdminPage() {
                 <CardTitle>Approved Sessions</CardTitle>
               </CardHeader>
               <CardContent>
-                {approvedSessions.length > 0 ? (
+                <div className="relative mb-4">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <Input
+                    placeholder="Search by topic, handler, or date..."
+                    value={approvedSearchQuery}
+                    onChange={(e) => setApprovedSearchQuery(e.target.value)}
+                    className="pl-9 pr-9 border-2 border-black"
+                  />
+                  {approvedSearchQuery && (
+                    <button
+                      onClick={() => setApprovedSearchQuery("")}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  )}
+                </div>
+
+                {filteredApprovedSessions.length > 0 ? (
                   <div className="space-y-4">
                     {paginatedApprovedSessions.map((interest) => {
                       const sessionWithFeedback = sessionsWithFeedback.find((s) => s.id === interest.id)
@@ -818,7 +860,9 @@ export default function AdminPage() {
                     )}
                   </div>
                 ) : (
-                  <div className="text-center py-8 text-gray-500">No approved sessions</div>
+                  <div className="text-center py-8 text-gray-500">
+                    {approvedSearchQuery ? "No approved sessions match your search" : "No approved sessions"}
+                  </div>
                 )}
               </CardContent>
             </Card>
