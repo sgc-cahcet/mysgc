@@ -72,7 +72,7 @@ export function FeedbackForm({ memberId, todaySessions }: FeedbackFormProps) {
   const checkFeedbackTimeWindow = () => {
     const { hours, minutes } = getISTTime()
     const currentTimeInMinutes = hours * 60 + minutes
-    const startTime = 13 * 60 + 30 // 1:30 PM
+    const startTime = 13 * 60 + 15 // 1:30 PM
     const endTime = 23 * 60 + 59 // 11:59 PM
     
     if (currentTimeInMinutes < startTime) {
