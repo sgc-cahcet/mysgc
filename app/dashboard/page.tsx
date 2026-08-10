@@ -174,7 +174,7 @@ export default function DashboardPage() {
               <div className="border-2 border-black rounded-lg p-6 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-white">
                 <h2 className="text-xl font-bold mb-4">Session Feedback</h2>
                 <p className="text-center py-6 text-gray-600">
-                  Don't forget to add your feedback about today's session! The feedback form will be available from 1:30
+                  Don't forget to add your feedback about today's session! The feedback form will be available from 1:20
                   PM to 11:59 PM IST.
                 </p>
               </div>
