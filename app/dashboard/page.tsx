@@ -133,8 +133,8 @@ export default function DashboardPage() {
     const adjustedHours = istHours + Math.floor(istMinutes / 60)
     const adjustedMinutes = istMinutes % 60
 
-    // Check if time is after 1:30 PM (13:30)
-    return adjustedHours > 13 || (adjustedHours === 13 && adjustedMinutes >= 30)
+    // Check if time is after 1:15 PM (13:15)
+    return adjustedHours > 13 || (adjustedHours === 13 && adjustedMinutes >= 15)
   }
 
   if (loading) {
